@@ -1,0 +1,1 @@
+HAL := $(SDK_ROOT)/hal/ambiq

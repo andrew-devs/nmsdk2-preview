@@ -1,0 +1,1 @@
+RTOS	:= $(SDK_ROOT)/rtos/FreeRTOS
