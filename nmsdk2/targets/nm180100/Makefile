@@ -9,7 +9,9 @@ HAL		:= $(SDK_ROOT)/hal/ambiq
 RTOS	:= $(SDK_ROOT)/rtos/FreeRTOS
 
 include makedefs/common.mk
+include makedefs/includes_hal.mk
 include makedefs/sources_hal.mk
+include makedefs/includes_rtos.mk
 include makedefs/sources_rtos.mk
 
 HAL_OBJS_DBG += $(HAL_SRC:%.c=$(BUILDDIR_DBG)/%.o)
