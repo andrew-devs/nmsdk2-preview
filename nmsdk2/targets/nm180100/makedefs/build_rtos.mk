@@ -4,11 +4,9 @@ include makedefs/sources_rtos.mk
 
 RTOS_OBJS_DBG += $(RTOS_SRC:%.c=$(BUILDDIR_DBG)/%.o)
 RTOS_DEPS_DBG += $(RTOS_SRC:%.c=$(BUILDDIR_DBG)/%.d)
-RTOS_LIB_DBG  := librtos$(SUFFIX_DBG).a
 
 RTOS_OBJS_REL += $(RTOS_SRC:%.c=$(BUILDDIR_REL)/%.o)
 RTOS_DEPS_REL += $(RTOS_SRC:%.c=$(BUILDDIR_REL)/%.d)
-RTOS_LIB_REL  := librtos$(SUFFIX_REL).a
 
 rtos_install: rtos_install_dbg rtos_install_rel
 

@@ -4,11 +4,9 @@ include makedefs/sources_hal.mk
 
 HAL_OBJS_DBG += $(HAL_SRC:%.c=$(BUILDDIR_DBG)/%.o)
 HAL_DEPS_DBG += $(HAL_SRC:%.c=$(BUILDDIR_DBG)/%.d)
-HAL_LIB_DBG  := libhal$(SUFFIX_DBG).a
 
 HAL_OBJS_REL += $(HAL_SRC:%.c=$(BUILDDIR_REL)/%.o)
 HAL_DEPS_REL += $(HAL_SRC:%.c=$(BUILDDIR_REL)/%.d)
-HAL_LIB_REL  := libhal$(SUFFIX_REL).a
 
 hal_install: hal_install_dbg hal_install_rel
 
