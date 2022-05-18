@@ -21,25 +21,26 @@ MKDIR = mkdir
 CP    = cp
 RM    = rm
 
-DEFINES  = -Dgcc
+DEFINES += -Dgcc
 DEFINES += -DAM_PART_APOLLO3
 DEFINES += -DAM_PACKAGE_BGA
 DEFINES += -DPART_apollo3
-ifdef DEBUG
-  DEFINES += -DAM_ASSERT_INVALID_THRESHOLD=0
-  DEFINES += -DAM_DEBUG_ASSERT
-  DEFINES += -DAM_DEBUG_PRINTF
-endif
+
+DEFINES_DBG += -DAM_ASSERT_INVALID_THRESHOLD=0
+DEFINES_DBG += -DAM_DEBUG_ASSERT
+DEFINES_DBG += -DAM_DEBUG_PRINTF
 
 CFLAGS  = -mthumb -mcpu=$(CPU) -mfpu=$(FPU) -mfloat-abi=$(FABI)
 CFLAGS += -ffunction-sections -fdata-sections
 CFLAGS += -MMD -MP -std=c99 -Wall
 CFLAGS += $(DEFINES)
-ifdef DEBUG
-  CFLAGS += -g -O0
-else
-  CFLAGS += -O3
-endif
+
+CFLAGS_DBG += $(CFLAGS)
+CFLAGS_DBG += $(DEFINES_DBG)
+CFLAGS_DBG += -g -O0
+
+CFLAGS_REL += $(CFLAGS)
+CFLAGS_REL += -O3
 
 LFLAGS  = -mthumb -mcpu=$(CPU) -mfpu=$(FPU) -mfloat-abi=$(FABI)
 LFLAGS += -nostartfiles -static
