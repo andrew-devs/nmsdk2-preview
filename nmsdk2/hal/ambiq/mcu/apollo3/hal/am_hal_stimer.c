@@ -378,7 +378,7 @@ am_hal_stimer_nvram_set(uint32_t ui32NvramNum, uint32_t ui32NvramVal)
         return;
     }
 
-    uint32_t *ui32NvramReg = AM_REG_STIMER_NVRAM(0, ui32NvramNum);
+    uint32_t *ui32NvramReg = (uint32_t *)AM_REG_STIMER_NVRAM(0, ui32NvramNum);
     *ui32NvramReg = ui32NvramVal;
 }
 
