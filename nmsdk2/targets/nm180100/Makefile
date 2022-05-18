@@ -1,10 +1,5 @@
 SDK_ROOT	?= ../..
 
-BUILDDIR_DBG := ./build/debug
-SUFFIX_DBG   := -dbg
-BUILDDIR_REL := ./build/release
-SUFFIX_REL   := -rel
-
 HAL		:= $(SDK_ROOT)/hal/ambiq
 RTOS	:= $(SDK_ROOT)/rtos/FreeRTOS
 

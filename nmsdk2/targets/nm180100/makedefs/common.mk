@@ -47,3 +47,9 @@ LFLAGS += -nostartfiles -static
 
 OCPFLAGS = -Obinary
 ODFLAGS  = -S
+
+BUILDDIR_DBG := ./build/debug
+SUFFIX_DBG   := -dbg
+BUILDDIR_REL := ./build/release
+SUFFIX_REL   := -rel
+
