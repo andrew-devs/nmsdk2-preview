@@ -29,10 +29,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __LORA_WAKE_H__
-#define __LORA_WAKE_H__
+#include "lora_power.h"
 
-extern void lora_wake_on_radio_irq(void)  __attribute ((weak, alias("lora_wake")));
-extern void lora_wake_on_timer(void)      __attribute ((weak, alias("lora_wake")));
+void lora_wake()
+{
 
-#endif
+}
