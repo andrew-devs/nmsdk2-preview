@@ -5,7 +5,7 @@ include makedefs/common.mk
 
 all: debug release
 
-install: $(INSTALLDIR) hal_install rtos_install
+install: debug release $(INSTALLDIR) hal_install rtos_install
 
 $(INSTALLDIR):
 	$(MKDIR) -p "$@"
