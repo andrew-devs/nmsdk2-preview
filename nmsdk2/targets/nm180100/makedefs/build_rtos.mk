@@ -26,7 +26,7 @@ rtos_dbg: $(BUILDDIR_DBG)/$(RTOS_LIB_DBG)
 $(BUILDDIR_DBG)/$(RTOS_LIB_DBG): $(RTOS_OBJS_DBG)
 	$(AR) rsvc $@ $^
 
-$(RTOS_OBJS_DBG): $(BUILDDIR_DBG)/%.o : %.c
+$(RTOS_OBJS_DBG): $(BUILDDIR_DBG)/%.o : %.c $(FREERTOSCONFIG)
 	$(CC) -c $(CFLAGS_DBG) $(RTOS_INC) $(HAL_INC) $< -o $@
 
 rtos_rel: $(BUILDDIR_REL)/$(RTOS_LIB_REL)
@@ -34,5 +34,5 @@ rtos_rel: $(BUILDDIR_REL)/$(RTOS_LIB_REL)
 $(BUILDDIR_REL)/$(RTOS_LIB_REL): $(RTOS_OBJS_REL)
 	$(AR) rsvc $@ $^
 
-$(RTOS_OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
+$(RTOS_OBJS_REL): $(BUILDDIR_REL)/%.o : %.c $(FREERTOSCONFIG)
 	$(CC) -c $(CFLAGS_REL) $(RTOS_INC) $(HAL_INC) $< -o $@
