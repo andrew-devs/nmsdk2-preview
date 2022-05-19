@@ -25,7 +25,7 @@ hal_dbg: $(BUILDDIR_DBG)/$(HAL_LIB_DBG)
 $(BUILDDIR_DBG)/$(HAL_LIB_DBG): $(HAL_OBJS_DBG)
 	$(AR) rsvc $@ $^
 
-$(HAL_OBJS_DBG): $(HAL_SRC)
+$(HAL_OBJS_DBG): $(BUILDDIR_DBG)/%.o : %.c
 	$(CC) -c $(CFLAGS_DBG) $(HAL_INC) $< -o $@
 
 hal_rel: $(BUILDDIR_REL)/$(HAL_LIB_REL)
@@ -33,5 +33,8 @@ hal_rel: $(BUILDDIR_REL)/$(HAL_LIB_REL)
 $(BUILDDIR_REL)/$(HAL_LIB_REL): $(HAL_OBJS_REL)
 	$(AR) rsvc $@ $^
 
-$(HAL_OBJS_REL): $(HAL_SRC)
+$(HAL_OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
 	$(CC) -c $(CFLAGS_REL) $(HAL_INC) $< -o $@
+
+-include $(HAL_DEPS_DBG)
+-include $(HAL_DEPS_REL)
