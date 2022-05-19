@@ -40,7 +40,7 @@
 #include <systime.h>
 #include <timer.h>
 
-#include "lora_wake.h"
+#include "lorawan_power.h"
 
 // The typical transition time from deep-sleep to run mode is 25us (Chapter 22.4).
 // A single alarm tick using a 32.768kHz crystal is about 30.5us.  At the nominal
@@ -77,7 +77,7 @@ void am_stimer_cmpr2_isr(void)
             RtcTimerContext.Running = false;
             TimerIrqHandler();
         
-            lora_wake_on_timer();
+            lorawan_wake_on_timer();
         }
     }
 }

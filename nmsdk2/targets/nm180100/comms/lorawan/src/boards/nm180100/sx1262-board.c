@@ -38,7 +38,7 @@
 #include <sx126x-board.h>
 #include <utilities.h>
 
-#include "lora_power.h"
+#include "lorawan_power.h"
 
 #define SX1262_IOM_MODULE 3
 #define RADIO_NRESET      44
@@ -254,7 +254,7 @@ void SX126xIoIrqHandler( void* context )
     if ( SX126xRadioHandle ) 
         ( SX126xRadioHandle )();
 
-    lora_wake_on_radio_irq();   
+    lorawan_wake_on_radio_irq();   
 }
 
 void SX126xIoIrqInit(DioIrqHandler dioIrq)
