@@ -12,6 +12,7 @@ CFLAGS_REL += $(INCLUDES) $(HAL_INC) $(RTOS_INC)
 
 LIBS_DBG += $(HAL_LIB_DBG)
 LIBS_DBG += $(RTOS_LIB_DBG)
+SDK_LIBS_DBG = $(LIBS_DBG:%.a=$(TARGET)/lib/%.a)
 
 LFLAGS_DBG += $(LFLAGS)
 LFLAGS_DBG += -Wl,--start-group
@@ -27,6 +28,7 @@ LFLAGS_DBG += -Wl,--end-group
 
 LIBS_REL += $(HAL_LIB_REL)
 LIBS_REL += $(RTOS_LIB_REL)
+SDK_LIBS_REL = $(LIBS_REL:%.a=$(TARGET)/lib/%.a)
 
 LFLAGS_REL += $(LFLAGS)
 LFLAGS_REL += -Wl,--start-group
@@ -40,7 +42,10 @@ LFLAGS_REL += --specs=nosys.specs
 LFLAGS_REL += -Wl,--end-group
 
 
-all: debug release
+all: nmsdk debug release
+
+nmsdk:
+	make -C $(TARGET) install
 
 OBJS_DBG += $(SRC:%.c=$(BUILDDIR_DBG)/%.o)
 DEPS_DBG += $(SRC:%.c=$(BUILDDIR_DBG)/%.o)
@@ -59,7 +64,7 @@ $(OUTPUT_BIN_DBG): $(OUTPUT_DBG)
 	$(OD)  $(ODFLAGS) $< > $(OUTPUT_LST_DBG)
 	$(SIZE) $(OBJS_DBG) $(OUTPUT_DBG)
 
-$(OUTPUT_DBG): $(OBJS_DBG)
+$(OUTPUT_DBG): $(OBJS_DBG) $(SDK_LIBS_DBG)
 	$(CC) -Wl,-T,$(LDSCRIPT) -o $@ $(OBJS_DBG) $(LFLAGS_DBG)
 
 $(OBJS_DBG): $(BUILDDIR_DBG)/%.o : %.c
@@ -83,7 +88,7 @@ $(OUTPUT_BIN_REL): $(OUTPUT_REL)
 	$(OD)  $(ODFLAGS) $< > $(OUTPUT_LST_REL)
 	$(SIZE) $(OBJS_REL) $(OUTPUT_REL)
 
-$(OUTPUT_REL): $(OBJS_REL)
+$(OUTPUT_REL): $(OBJS_REL) $(SDK_LIBS_REL)
 	$(CC) -Wl,-T,$(LDSCRIPT) -o $@ $(OBJS_REL) $(LFLAGS_REL)
 
 $(OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
@@ -92,3 +97,5 @@ $(OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
 
 clean:
 	$(RM) -rf ./build
+
+.phony: nmsdk
