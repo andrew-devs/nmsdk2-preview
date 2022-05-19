@@ -45,11 +45,19 @@ all: debug release
 OBJS_DBG += $(SRC:%.c=$(BUILDDIR_DBG)/%.o)
 DEPS_DBG += $(SRC:%.c=$(BUILDDIR_DBG)/%.o)
 OUTPUT_DBG := $(BUILDDIR_DBG)/$(OUTPUT)$(SUFFIX_DBG).axf
+OUTPUT_BIN_DBG := $(OUTPUT_DBG:%.axf=%.bin)
+OUTPUT_LST_DBG := $(OUTPUT_DBG:%.axf=%.lst)
+OUTPUT_SIZE_DBG := $(OUTPUT_DBG:%.axf=%.size)
 
-debug: $(BUILDDIR_DBG) $(OUTPUT_DBG)
+debug: $(BUILDDIR_DBG) $(OUTPUT_BIN_DBG)
 
 $(BUILDDIR_DBG):
 	$(MKDIR) -p "$@"
+
+$(OUTPUT_BIN_DBG): $(OUTPUT_DBG)
+	$(OCP) $(OCPFLAGS) $< $@
+	$(OD)  $(ODFLAGS) $< > $(OUTPUT_LST_DBG)
+	$(SIZE) $(OBJS_DBG) $(OUTPUT_DBG)
 
 $(OUTPUT_DBG): $(OBJS_DBG)
 	$(CC) -Wl,-T,$(LDSCRIPT) -o $@ $(OBJS_DBG) $(LFLAGS_DBG)
@@ -61,11 +69,19 @@ $(OBJS_DBG): $(BUILDDIR_DBG)/%.o : %.c
 OBJS_REL += $(SRC:%.c=$(BUILDDIR_REL)/%.o)
 DEPS_REL += $(SRC:%.c=$(BUILDDIR_REL)/%.o)
 OUTPUT_REL := $(BUILDDIR_REL)/$(OUTPUT)$(SUFFIX_REL).axf
+OUTPUT_BIN_REL := $(OUTPUT_REL:%.axf=%.bin)
+OUTPUT_LST_REL := $(OUTPUT_REL:%.axf=%.lst)
+OUTPUT_SIZE_REL := $(OUTPUT_REL:%.axf=%.size)
 
-release: $(BUILDDIR_REL) $(OUTPUT_REL)
+release: $(BUILDDIR_REL) $(OUTPUT_BIN_REL)
 
 $(BUILDDIR_REL):
 	$(MKDIR) -p "$@"
+
+$(OUTPUT_BIN_REL): $(OUTPUT_REL)
+	$(OCP) $(OCPFLAGS) $< $@
+	$(OD)  $(ODFLAGS) $< > $(OUTPUT_LST_REL)
+	$(SIZE) $(OBJS_REL) $(OUTPUT_REL)
 
 $(OUTPUT_REL): $(OBJS_REL)
 	$(CC) -Wl,-T,$(LDSCRIPT) -o $@ $(OBJS_REL) $(LFLAGS_REL)
