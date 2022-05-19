@@ -94,8 +94,13 @@ $(OUTPUT_REL): $(OBJS_REL) $(SDK_LIBS_REL)
 $(OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
 	$(CC) -c $(CFLAGS_REL) $< -o $@
 
+clean-debug:
+	$(RM) -rf $(BUILDDIR_DBG)
 
-clean:
+clean-release:
+	$(RM) -rf $(BUILDDIR_REL)
+
+cleanall:
 	$(RM) -rf ./build
 
 .phony: nmsdk
