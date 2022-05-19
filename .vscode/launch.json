@@ -1,0 +1,66 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "cortex-debug",
+            "request": "launch",
+            "name": "application debug",
+            "cwd": "${workspaceRoot}",
+            "executable": "./build/debug/nmapp-dbg.axf",
+            "servertype": "jlink",
+            "device": "AMA3B1KK-KBR",
+            "interface": "swd",
+            "serialNumber": "",
+            "runToEntryPoint": "main",
+            "svdFile": "${workspaceRoot}/nmsdk2/hal/ambiq/pack/SVD/apollo3.svd",
+            "showDevDebugOutput": "none",
+            "serverArgs": [
+                "-singlerun",
+                "-nogui",
+                "-rtos", "./GDBServer/RTOSPlugin_FreeRTOS"
+            ],
+            "preLaunchTask": "build debug",
+            "rttConfig": {
+                "enabled": true,
+                "address": "auto",
+                "decoders": [
+                    {
+                        "port": 0,
+                        "type": "console"
+                    }
+                ]
+            }
+        },
+
+        {
+            "type": "cortex-debug",
+            "request": "launch",
+            "name": "application release",
+            "cwd": "${workspaceRoot}",
+            "executable": "./build/release/nmapp-rel.axf",
+            "servertype": "jlink",
+            "device": "AMA3B1KK-KBR",
+            "interface": "swd",
+            "serialNumber": "",
+            "svdFile": "${workspaceRoot}/nmsdk2/hal/ambiq/pack/SVD/apollo3.svd",
+            "showDevDebugOutput": "none",
+            "serverArgs": [
+                "-singlerun",
+                "-nogui",
+            ],
+            "preLaunchTask": "build release",
+            "rttConfig": {
+                "enabled": true,
+                "address": "auto",
+                "decoders": [
+                    {
+                        "port": 0,
+                        "type": "console"
+                    }
+                ]
+            }
+        },
+
+
+    ]
+}
