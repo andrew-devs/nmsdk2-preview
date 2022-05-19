@@ -5,7 +5,7 @@
 
   "tasks": [
     {
-      "label": "application release",
+      "label": "build release",
       "type": "shell",
       "command": "make",
       "args": ["release"],
@@ -23,7 +23,7 @@
     },
 
     {
-      "label": "application debug",
+      "label": "build debug",
       "type": "shell",
       "command": "make",
       "args": ["debug"],
@@ -41,7 +41,7 @@
     },
 
     {
-      "label": "application all",
+      "label": "build all",
       "type": "shell",
       "command": "make",
       "args": ["all"],
@@ -59,7 +59,7 @@
     },
 
     {
-      "label": "application clean debug",
+      "label": "clean debug",
       "type": "shell",
       "command": "make",
       "args": ["clean-debug"],
@@ -77,7 +77,7 @@
     },
 
     {
-      "label": "application clean release",
+      "label": "clean release",
       "type": "shell",
       "command": "make",
       "args": ["clean-release"],
@@ -95,7 +95,7 @@
     },
 
     {
-      "label": "application clean all",
+      "label": "clean all",
       "type": "shell",
       "command": "make",
       "args": ["cleanall"],
