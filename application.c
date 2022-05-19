@@ -56,7 +56,7 @@ void application_task(void *parameter)
 
     while (1)
     {
-        vTaskDelay(500);
+        vTaskDelay(pdMS_TO_TICKS(500));
         am_hal_gpio_state_write(10, AM_HAL_GPIO_OUTPUT_TOGGLE);
     }
 }
