@@ -38,7 +38,7 @@
 #include <sx126x-board.h>
 #include <utilities.h>
 
-#include "lora_wake.h"
+#include "lora_power.h"
 
 #define SX1262_IOM_MODULE 3
 #define RADIO_NRESET      44
