@@ -36,3 +36,6 @@ $(BUILDDIR_REL)/$(RTOS_LIB_REL): $(RTOS_OBJS_REL)
 
 $(RTOS_OBJS_REL): $(BUILDDIR_REL)/%.o : %.c $(FREERTOSCONFIG)
 	$(CC) -c $(CFLAGS_REL) $(RTOS_INC) $(HAL_INC) $< -o $@
+
+-include $(RTOS_DEPS_DBG)
+-include $(RTOS_DEPS_REL)
