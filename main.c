@@ -41,6 +41,8 @@
 #include <FreeRTOS.h>
 #include <task.h>
 
+#include "application.h"
+
 //*****************************************************************************
 //
 // Sleep function called from FreeRTOS IDLE task.
@@ -143,6 +145,7 @@ void system_setup(void)
 
 void system_start(void)
 {
+    application_task_create(2);
     //
     // Start the scheduler.
     //

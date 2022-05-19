@@ -42,3 +42,4 @@ VPATH += .
 
 SRC += startup_gcc.c
 SRC += main.c
+SRC += application.c
