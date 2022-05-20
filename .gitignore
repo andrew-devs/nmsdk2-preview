@@ -5,6 +5,7 @@
 .vscode/configurationCache.log
 .vscode/dryrun.log
 .vscode/targets.log
+.vscode/settings.json
 build/
 __pycache__/
 *.pyc
