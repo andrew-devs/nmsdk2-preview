@@ -41,7 +41,8 @@
 #include <FreeRTOS.h>
 #include <task.h>
 
-#include "application.h"
+#include "application_task.h"
+#include "console_task.h"
 
 //*****************************************************************************
 //
@@ -145,7 +146,8 @@ void system_setup(void)
 
 void system_start(void)
 {
-    application_task_create(2);
+    console_task_create(2);
+    application_task_create(1);
     //
     // Start the scheduler.
     //
