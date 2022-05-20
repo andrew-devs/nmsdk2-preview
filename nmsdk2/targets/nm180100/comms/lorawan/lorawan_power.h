@@ -32,7 +32,7 @@
 #ifndef __LORAWAN_POWER_H__
 #define __LORAWAN_POWER_H__
 
-extern void lorawan_wake_on_radio_irq(void)  __attribute ((weak, alias("lorawan_wake")));
-extern void lorawan_wake_on_timer(void)      __attribute ((weak, alias("lorawan_wake")));
+extern void lorawan_wake_on_radio_irq(void);
+extern void lorawan_wake_on_timer(void);
 
 #endif
