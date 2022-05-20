@@ -46,3 +46,4 @@ SRC += startup_gcc.c
 SRC += main.c
 SRC += console_task.c
 SRC += application_task.c
+SRC += application_task_cli.c
