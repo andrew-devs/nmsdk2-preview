@@ -59,7 +59,7 @@ LFLAGS_REL += --specs=nosys.specs
 LFLAGS_REL += -Wl,--end-group
 
 
-all: nmsdk debug release
+all: debug release
 
 nmsdk:
 	make -C $(TARGET) install
@@ -79,7 +79,7 @@ OUTPUT_BIN_DBG := $(OUTPUT_DBG:%.axf=%.bin)
 OUTPUT_LST_DBG := $(OUTPUT_DBG:%.axf=%.lst)
 OUTPUT_SIZE_DBG := $(OUTPUT_DBG:%.axf=%.size)
 
-debug: bsp $(BUILDDIR_DBG) $(OUTPUT_BIN_DBG)
+debug: nmsdk bsp $(BUILDDIR_DBG) $(OUTPUT_BIN_DBG)
 
 $(BUILDDIR_DBG):
 	$(MKDIR) -p "$@"
@@ -103,7 +103,7 @@ OUTPUT_BIN_REL := $(OUTPUT_REL:%.axf=%.bin)
 OUTPUT_LST_REL := $(OUTPUT_REL:%.axf=%.lst)
 OUTPUT_SIZE_REL := $(OUTPUT_REL:%.axf=%.size)
 
-release: bsp $(BUILDDIR_REL) $(OUTPUT_BIN_REL)
+release: nmsdk bsp $(BUILDDIR_REL) $(OUTPUT_BIN_REL)
 
 $(BUILDDIR_REL):
 	$(MKDIR) -p "$@"
@@ -118,6 +118,10 @@ $(OUTPUT_REL): $(OBJS_REL) $(SDK_LIBS_REL)
 
 $(OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
 	$(CC) -c $(CFLAGS_REL) $< -o $@
+
+clean-sdk:
+	make -C $(TARGET) uninstall
+	make -C $(TARGET) clean
 
 clean-debug:
 	$(RM) -rf $(BUILDDIR_DBG) $(BSP_H) $(BSP_C)
