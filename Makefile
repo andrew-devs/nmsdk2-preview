@@ -58,11 +58,12 @@ LFLAGS_REL += --specs=nano.specs
 LFLAGS_REL += --specs=nosys.specs
 LFLAGS_REL += -Wl,--end-group
 
+SDK_CONFIGS += FREERTOSCONFIG=$(FREERTOSCONFIG)
 
 all: debug release
 
 nmsdk:
-	make -C $(TARGET) install
+	make -C $(TARGET) install $(SDK_CONFIGS)
 
 bsp: $(BSP_H) $(BSP_C)
 
