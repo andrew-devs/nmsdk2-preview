@@ -283,6 +283,11 @@ uint32_t eeprom_init(uint32_t ui32StartAddress, uint32_t ui32NumberOfPages, eepr
         return EEPROM_STATUS_ERROR;
     }
 
+    if (pHandle->pages == NULL)
+    {
+        return EEPROM_STATUS_ERROR;
+    }
+
     pHandle->allocated = EEPROM_ALLOCATED;
     pHandle->active_page = -1;
     pHandle->receiving_page = -1;
