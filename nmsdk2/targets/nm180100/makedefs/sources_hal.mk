@@ -1,6 +1,7 @@
 VPATH += $(HAL)/mcu/apollo3/hal
 VPATH += $(HAL)/mcu/apollo3/regs
 VPATH += $(HAL)/utils
+VPATH += ./hal
 
 HAL_SRC += am_hal_adc.c
 HAL_SRC += am_hal_ble.c
@@ -46,3 +47,5 @@ HAL_SRC += am_util_regdump.c
 HAL_SRC += am_util_stdio.c
 HAL_SRC += am_util_string.c
 HAL_SRC += am_util_time.c
+
+HAL_SRC += eeprom_emulation.c
