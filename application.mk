@@ -32,13 +32,16 @@ OUTPUT_OTA  := nmapp-ota
 #
 # Step 4
 # Specify SDK custom configurations here.  Use $(shell pwd) expansion as an
-# absolute path is required.
+# absolute path is required.  The SDK must be rebuilt manually the first time a
+# configuration file is overridden.
+#
+#   make clean-sdk
 #
 # For example: 
-#   FREERTOSCONFIG := $(shell pwd)/config/FreeRTOSConfig.h
+#   FREERTOS_CONFIG := $(shell pwd)/config/FreeRTOSConfig.h
 #
 # Current overridable configurations are:
-#   FREERTOSCONFIG
+#   FREERTOS_CONFIG
 #
 #******************************************************************************
 
