@@ -4,8 +4,8 @@
 # Define the locations of the various SDKs and libraries.
 #
 #******************************************************************************
-NMSDK  ?= ./nmsdk2
-TARGET := $(NMSDK)/targets/nm180100
+NMSDK    ?= ./nmsdk2
+TARGET   := $(NMSDK)/targets/nm180100
 LDSCRIPT := ldscript.ld
 
 #******************************************************************************
@@ -14,6 +14,8 @@ LDSCRIPT := ldscript.ld
 # Specify the location of the board support package to be used.
 #
 #******************************************************************************
+BSP_DIR := ./bsp/nm180100evb
+BSP_SRC := bsp_pins.src
 
 #******************************************************************************
 #

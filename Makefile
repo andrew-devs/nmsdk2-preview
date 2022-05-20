@@ -9,6 +9,19 @@ include $(TARGET)/makedefs/includes_hal.mk
 include $(TARGET)/makedefs/includes_rtos.mk
 include $(TARGET)/makedefs/includes_lorawan.mk
 
+BSP_GENERATOR := ./tools/bsp_generator/pinconfig.py
+
+BSP_H := $(BSP_DIR)/am_bsp_pins.h
+BSP_C := $(BSP_DIR)/am_bsp_pins.c
+
+INCLUDES += -I$(BSP_DIR)
+VPATH    += $(BSP_DIR)
+SRC += am_bsp_pins.c
+
+INCLUDES += -I./bsp
+VPATH    += ./bsp
+SRC += am_bsp.c
+
 CFLAGS_DBG += $(INCLUDES) $(HAL_INC) $(RTOS_INC) $(LORAWAN_INC)
 CFLAGS_REL += $(INCLUDES) $(HAL_INC) $(RTOS_INC) $(LORAWAN_INC)
 
@@ -51,6 +64,14 @@ all: nmsdk debug release
 nmsdk:
 	make -C $(TARGET) install
 
+bsp: $(BSP_H) $(BSP_C)
+
+$(BSP_H): $(BSP_SRC)
+	python $(BSP_GENERATOR) $< h > $@
+
+$(BSP_C): $(BSP_SRC)
+	python $(BSP_GENERATOR) $< c > $@
+
 OBJS_DBG += $(SRC:%.c=$(BUILDDIR_DBG)/%.o)
 DEPS_DBG += $(SRC:%.c=$(BUILDDIR_DBG)/%.o)
 OUTPUT_DBG := $(BUILDDIR_DBG)/$(OUTPUT)$(SUFFIX_DBG).axf
@@ -58,7 +79,7 @@ OUTPUT_BIN_DBG := $(OUTPUT_DBG:%.axf=%.bin)
 OUTPUT_LST_DBG := $(OUTPUT_DBG:%.axf=%.lst)
 OUTPUT_SIZE_DBG := $(OUTPUT_DBG:%.axf=%.size)
 
-debug: $(BUILDDIR_DBG) $(OUTPUT_BIN_DBG)
+debug: bsp $(BUILDDIR_DBG) $(OUTPUT_BIN_DBG)
 
 $(BUILDDIR_DBG):
 	$(MKDIR) -p "$@"
@@ -82,7 +103,7 @@ OUTPUT_BIN_REL := $(OUTPUT_REL:%.axf=%.bin)
 OUTPUT_LST_REL := $(OUTPUT_REL:%.axf=%.lst)
 OUTPUT_SIZE_REL := $(OUTPUT_REL:%.axf=%.size)
 
-release: $(BUILDDIR_REL) $(OUTPUT_BIN_REL)
+release: bsp $(BUILDDIR_REL) $(OUTPUT_BIN_REL)
 
 $(BUILDDIR_REL):
 	$(MKDIR) -p "$@"
@@ -99,12 +120,12 @@ $(OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
 	$(CC) -c $(CFLAGS_REL) $< -o $@
 
 clean-debug:
-	$(RM) -rf $(BUILDDIR_DBG)
+	$(RM) -rf $(BUILDDIR_DBG) $(BSP_H) $(BSP_C)
 
 clean-release:
-	$(RM) -rf $(BUILDDIR_REL)
+	$(RM) -rf $(BUILDDIR_REL) $(BSP_H) $(BSP_C)
 
 cleanall:
-	$(RM) -rf ./build
+	$(RM) -rf ./build $(BSP_H) $(BSP_C)
 
 .phony: nmsdk

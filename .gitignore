@@ -16,3 +16,5 @@ __pycache__/
 *.lst
 *.map
 lib/
+am_bsp_pins.c
+am_bsp_pins.h
