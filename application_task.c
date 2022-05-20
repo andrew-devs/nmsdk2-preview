@@ -29,9 +29,34 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _APPLICATION_H_
-#define _APPLICATION_H_
+#include <am_mcu_apollo.h>
 
-extern void application_task_create(uint32_t priority);
+#include <FreeRTOS.h>
+#include <task.h>
 
-#endif
+#include "application_task.h"
+
+static TaskHandle_t application_task_handle;
+
+static void application_task(void *parameter);
+
+void application_task_create(uint32_t priority)
+{
+    xTaskCreate(
+        application_task,
+        "application",
+        512, 0, priority,
+        &application_task_handle);
+}
+
+void application_task(void *parameter)
+{
+    am_hal_gpio_pinconfig(10, g_AM_HAL_GPIO_OUTPUT);
+    am_hal_gpio_state_write(10, AM_HAL_GPIO_OUTPUT_SET);
+
+    while (1)
+    {
+        vTaskDelay(pdMS_TO_TICKS(500));
+        am_hal_gpio_state_write(10, AM_HAL_GPIO_OUTPUT_TOGGLE);
+    }
+}
