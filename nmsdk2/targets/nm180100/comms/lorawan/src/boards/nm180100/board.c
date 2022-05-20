@@ -39,7 +39,7 @@
 #include "rtc-board.h"
 #include "sx126x-board.h"
 
-static lorawan_eeprom_pages[LORAWAN_EEPROM_NUMBER_OF_PAGES];
+static eeprom_page_t lorawan_eeprom_pages[LORAWAN_EEPROM_NUMBER_OF_PAGES];
 
 void BoardCriticalSectionBegin(uint32_t *mask)
 {
@@ -54,6 +54,8 @@ void BoardCriticalSectionEnd(uint32_t *mask)
 void BoardInitPeriph(void)
 {
     RtcInit();
+
+    lorawan_eeprom_handle.pages = lorawan_eeprom_pages;
     uint32_t ui32Status = eeprom_init(
         LORAWAN_EEPROM_START_ADDRESS,
         LORAWAN_EEPROM_NUMBER_OF_PAGES,
