@@ -4,7 +4,7 @@
 # Define the locations of the various SDKs and libraries.
 #
 #******************************************************************************
-NMSDK    ?= ./nmsdk2
+NMSDK    ?= $(shell pwd)/nmsdk2
 TARGET   := $(NMSDK)/targets/nm180100
 LDSCRIPT := ldscript.ld
 
@@ -31,6 +31,20 @@ OUTPUT_OTA  := nmapp-ota
 #******************************************************************************
 #
 # Step 4
+# Specify SDK custom configurations here.  Use $(shell pwd) expansion as an
+# absolute path is required.
+#
+# For example: 
+#   FREERTOSCONFIG := $(shell pwd)/config/FreeRTOSConfig.h
+#
+# Current overridable configurations are:
+#   FREERTOSCONFIG
+#
+#******************************************************************************
+
+#******************************************************************************
+#
+# Step 5
 # Include additional source, header, libraries or paths below.
 #
 # Examples:
