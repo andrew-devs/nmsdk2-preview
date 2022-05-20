@@ -59,6 +59,7 @@ LFLAGS_REL += --specs=nosys.specs
 LFLAGS_REL += -Wl,--end-group
 
 SDK_CONFIGS += FREERTOS_CONFIG=$(FREERTOS_CONFIG)
+SDK_CONFIGS += LORAWAN_EEPROM_CONFIG=$(LORAWAN_EEPROM_CONFIG)
 
 all: debug release
 

@@ -42,6 +42,7 @@ OUTPUT_OTA  := nmapp-ota
 #
 # Current overridable configurations are:
 #   FREERTOS_CONFIG
+#	LORAWAN_EEPROM_CONFIG
 #
 #******************************************************************************
 

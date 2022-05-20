@@ -16,4 +16,4 @@ LORAWAN_INC += -I$(LORAWAN)/src/mac/region
 LORAWAN_INC += -I$(LORAWAN)/src/system
 LORAWAN_INC += -I$(LORAWAN)/src/peripherals/soft-se
 LORAWAN_INC += -I$(LORAWAN)/../../targets/nm180100/comms/lorawan/src/boards/nm180100
-LORAWAN_INC += -I$(LORAWAN)/../../targets/nm180100/comms/lorawan
+LORAWAN_INC += -I$(dir $(LORAWAN_EEPROM_CONFIG))

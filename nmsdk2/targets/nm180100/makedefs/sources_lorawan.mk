@@ -4,7 +4,6 @@ VPATH += $(LORAWAN)/src/mac
 VPATH += $(LORAWAN)/src/mac/region
 VPATH += $(LORAWAN)/src/system
 VPATH += $(LORAWAN)/src/peripherals/soft-se
-VPATH += ./comms/lorawan
 VPATH += ./comms/lorawan/src/boards/nm180100
 
 LORAWAN_SRC += radio.c
