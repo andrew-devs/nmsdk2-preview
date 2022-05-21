@@ -65,3 +65,36 @@ SRC += main.c
 SRC += console_task.c
 SRC += application_task.c
 SRC += application_task_cli.c
+
+
+DEFINES += -DSOFT_SE
+
+INCLUDES += -I./comms/lorawan/common/LmHandler/packages
+INCLUDES += -I./comms/lorawan/common/LmHandler
+INCLUDES += -I./comms/lorawan/common
+INCLUDES += -I./comms/lorawan/soft-se
+INCLUDES += -I./comms/lorawan
+
+VPATH += ./comms/lorawan/common/LmHandler/packages
+VPATH += ./comms/lorawan/common/LmHandler
+VPATH += ./comms/lorawan/common
+VPATH += ./comms/lorawan/soft-se
+VPATH += ./comms/lorawan
+
+SRC += FragDecoder.c
+SRC += LmhpClockSync.c
+SRC += LmhpCompliance.c
+SRC += LmhpFragmentation.c
+SRC += LmhpRemoteMcastSetup.c
+SRC += LmHandler.c
+SRC += CayenneLpp.c
+SRC += LmHandlerMsgDisplay.c
+SRC += NvmDataMgmt.c
+
+SRC += aes.c
+SRC += cmac.c
+SRC += soft-se-hal.c
+SRC += soft-se.c
+
+SRC += lorawan_task.c
+SRC += lorawan_task_cli.c
