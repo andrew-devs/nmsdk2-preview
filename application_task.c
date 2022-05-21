@@ -35,6 +35,7 @@
 #include <task.h>
 
 #include "application_task.h"
+#include "application_task_cli.h"
 
 static TaskHandle_t application_task_handle;
 
