@@ -29,20 +29,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _LORAWAN_H_
-#define _LORAWAN_H_
+#ifndef _LORAMAC_LAYER5_H_
+#define _LORAMAC_LAYER5_H_
 
-typedef enum
-{
-    LORAWAN_JOIN,
-    LORAWAN_STOP,
-    LORAWAN_RESET,
-} lorawan_command_e;
-
-extern void lorawan_task_create(uint32_t priority);
-extern void lorawan_task_wake();
-extern void lorawan_send_command(lorawan_command_e cmd);
-extern void lorawan_transmit(uint32_t ack, uint32_t port, uint32_t size, uint8_t *data);
-extern void lorawan_receive(uint32_t *ack, uint32_t *port, uint32_t *size, uint8_t *data);
+void loramac_layer5_setup();
 
 #endif
+

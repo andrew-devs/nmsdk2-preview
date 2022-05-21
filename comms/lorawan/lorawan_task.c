@@ -43,6 +43,7 @@
 
 #include <FreeRTOS.h>
 #include <queue.h>
+#include <task.h>
 
 #include <LmHandler.h>
 #include <LmHandlerMsgDisplay.h>
@@ -57,14 +58,14 @@
 
 #include <lorawan_power.h>
 
+#include "loramac_layer5.h"
+
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
 
 static TaskHandle_t  lorawan_task_handle;
 static QueueHandle_t lorawan_command_queue;
 static QueueHandle_t lorawan_transmit_queue;
-
-typedef uint32_t lorawan_command_t;
 
 typedef struct
 {
@@ -78,57 +79,57 @@ static void lorawan_task(void *parameter);
 
 void lorawan_wake_on_radio_irq()
 {
-    xTaskNotifyGive(lorawan_task_handle);
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    vTaskNotifyGiveFromISR(lorawan_task_handle, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 void lorawan_wake_on_timer()
 {
-    xTaskNotifyGive(lorawan_task_handle);
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    vTaskNotifyGiveFromISR(lorawan_task_handle, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 static void lorawan_task_handle_command()
 {
-    lorawan_command_t command;
-    xQueueReceive(lorawan_command_queue, &command, 0);
+    lorawan_command_e command;
+    if (xQueueReceive(lorawan_command_queue, &command, 0))
+    {
+        switch(command)
+        {
+        case LORAWAN_JOIN:
+            LmHandlerJoin();
+            break;
+
+        default:
+            break;
+        }
+    }
 }
 
 static void lorawan_task_handle_uplink()
 {
     lorawan_packet_t packet;
-    xQueueReceive(lorawan_transmit_queue, &packet, 0);
-
-    LmHandlerAppData_t app_data;
-    app_data.Port       = packet.port;
-    app_data.Buffer     = packet.payload;
-    app_data.BufferSize = packet.size;
-    LmHandlerSend(&app_data, packet.type);
-
-    if (packet.size > 0)
+    if (xQueueReceive(lorawan_transmit_queue, &packet, 0))
     {
-        vPortFree(packet.payload);
+        LmHandlerAppData_t app_data;
+        app_data.Port       = packet.port;
+        app_data.Buffer     = packet.payload;
+        app_data.BufferSize = packet.size;
+        LmHandlerSend(&app_data, packet.type);
+
+        if (packet.size > 0)
+        {
+            vPortFree(packet.payload);
+        }
     }
-}
-
-void BoardGetUniqueId(uint8_t *id)
-{
-    am_util_id_t i;
-
-    am_util_id_device(&i);
-
-    id[0] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID0);
-    id[1] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID0 >> 8);
-    id[2] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID0 >> 16);
-    id[3] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID0 >> 24);
-    id[4] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1);
-    id[5] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 8);
-    id[6] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 16);
-    id[7] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 24);
 }
 
 void lorawan_task_create(uint32_t priority)
 {
-    lorawan_command_queue  = xQueueCreate(10, sizeof(lorawan_command_t));
-    lorawan_transmit_queue = xQueueCreate(10, sizeof(lorawan_packet_t));
+    lorawan_command_queue  = xQueueCreate(8, sizeof(lorawan_command_e));
+    lorawan_transmit_queue = xQueueCreate(8, sizeof(lorawan_packet_t));
 
     xTaskCreate(
         lorawan_task,
@@ -137,13 +138,18 @@ void lorawan_task_create(uint32_t priority)
         &lorawan_task_handle);
 }
 
-void lorawan_task_command(uint32_t command)
+void lorawan_task_wake()
+{
+    xTaskNotifyGive(lorawan_task_handle);
+}
+
+void lorawan_send_command(lorawan_command_e command)
 {
     xQueueSend(lorawan_command_queue, &command, 0);
     xTaskNotifyGive(lorawan_task_handle);
 }
 
-void lorawan_task_transmit(LmHandlerMsgTypes_t type, uint32_t port, uint32_t size, uint8_t *data)
+void lorawan_transmit(uint32_t ack, uint32_t port, uint32_t size, uint8_t *data)
 {
     lorawan_packet_t packet;
     uint8_t *payload;
@@ -158,7 +164,7 @@ void lorawan_task_transmit(LmHandlerMsgTypes_t type, uint32_t port, uint32_t siz
         payload = NULL;
     }
 
-    packet.type = type;
+    packet.type = (ack ? LORAMAC_HANDLER_CONFIRMED_MSG : LORAMAC_HANDLER_UNCONFIRMED_MSG);
     packet.port = port;
     packet.size = size;
     packet.payload = payload;
@@ -176,9 +182,17 @@ void lorawan_task_transmit(LmHandlerMsgTypes_t type, uint32_t port, uint32_t siz
     }
 }
 
+void lorawan_receive(uint32_t *ack, uint32_t *port, uint32_t *size, uint8_t *data)
+{
+    lorawan_packet_t packet;
+    uint8_t *payload;
+}
+
 void lorawan_task(void *parameter)
 {
     lorawan_task_cli_register();
+
+    loramac_layer5_setup();
 
     am_hal_gpio_pinconfig(17, g_AM_HAL_GPIO_OUTPUT);
     am_hal_gpio_state_write(17, AM_HAL_GPIO_OUTPUT_SET);
@@ -197,7 +211,5 @@ void lorawan_task(void *parameter)
             portMAX_DELAY);
 
         am_hal_gpio_state_write(17, AM_HAL_GPIO_OUTPUT_TOGGLE);
-        vTaskDelay(pdMS_TO_TICKS(500));
-
     }
 }

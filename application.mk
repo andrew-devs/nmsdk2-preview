@@ -45,6 +45,7 @@ OUTPUT_OTA  := nmapp-ota
 #	LORAWAN_EEPROM_CONFIG
 #
 #******************************************************************************
+FREERTOS_CONFIG := $(shell pwd)/config/FreeRTOSConfig.h
 
 #******************************************************************************
 #
@@ -68,6 +69,7 @@ SRC += application_task_cli.c
 
 
 DEFINES += -DSOFT_SE
+LORAWAN_DEFINES += -DCONTEXT_MANAGEMENT_ENABLED
 
 INCLUDES += -I./comms/lorawan/common/LmHandler/packages
 INCLUDES += -I./comms/lorawan/common/LmHandler
@@ -95,6 +97,8 @@ SRC += aes.c
 SRC += cmac.c
 SRC += soft-se-hal.c
 SRC += soft-se.c
+
+SRC += loramac_layer5.c
 
 SRC += lorawan_task.c
 SRC += lorawan_task_cli.c

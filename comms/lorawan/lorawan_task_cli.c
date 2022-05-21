@@ -38,6 +38,7 @@
 #include <FreeRTOS.h>
 #include <FreeRTOS_CLI.h>
 
+#include "lorawan_task.h"
 #include "lorawan_task_cli.h"
 
 static portBASE_TYPE lorawan_task_cli_entry(
@@ -64,12 +65,18 @@ static void help(char *pui8OutBuffer, size_t argc, char **argv)
     strcat(pui8OutBuffer, "\r\n");
     strcat(pui8OutBuffer, "supported commands are:\r\n");
     strcat(pui8OutBuffer, "  reset\r\n");
+    strcat(pui8OutBuffer, "  join\r\n");
     strcat(pui8OutBuffer, "  send\r\n");
+}
+
+static void join(char *pui8OutBuffer, size_t argc, char **argv)
+{
+    lorawan_send_command(LORAWAN_JOIN);
 }
 
 static void send(char *pui8OutBuffer, size_t argc, char **argv)
 {
-    lorawan_task_command();
+    lorawan_transmit(0, 1, 0, NULL);
 }
 
 portBASE_TYPE lorawan_task_cli_entry(
@@ -88,11 +95,14 @@ portBASE_TYPE lorawan_task_cli_entry(
     {
         NVIC_SystemReset();
     }
+    else if (strcmp(argv[1], "join") == 0)
+    {
+        join(pui8OutBuffer, argc, argv);
+    }
     else if (strcmp(argv[1], "send") == 0)
     {
         send(pui8OutBuffer, argc, argv);
     }
-
 
     return pdFALSE;
 }

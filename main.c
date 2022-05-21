@@ -143,12 +143,17 @@ void system_setup(void)
     am_hal_pwrctrl_low_power_init();
     am_hal_rtc_osc_disable();
 
+    NVIC_SetPriority(GPIO_IRQn, NVIC_configKERNEL_INTERRUPT_PRIORITY);
+    NVIC_SetPriority(STIMER_CMPR2_IRQn, NVIC_configKERNEL_INTERRUPT_PRIORITY);
+    NVIC_SetPriority(STIMER_CMPR3_IRQn, NVIC_configKERNEL_INTERRUPT_PRIORITY);
+
+    am_hal_interrupt_master_enable();
 }
 
 void system_start(void)
 {
-    lorawan_task_create(3);
-    console_task_create(2);
+    console_task_create(3);
+    lorawan_task_create(2);
     application_task_create(1);
     //
     // Start the scheduler.
