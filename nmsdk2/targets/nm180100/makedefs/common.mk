@@ -40,7 +40,7 @@ CFLAGS_DBG += $(DEFINES_DBG)
 CFLAGS_DBG += -g -O0
 
 CFLAGS_REL += $(CFLAGS)
-CFLAGS_REL += -O3
+CFLAGS_REL += -Os
 
 LFLAGS  = -mthumb -mcpu=$(CPU) -mfpu=$(FPU) -mfloat-abi=$(FABI)
 LFLAGS += -nostartfiles -static
