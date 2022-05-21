@@ -57,7 +57,7 @@ extern "C"
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
 #define configCPU_CLOCK_HZ                      48000000UL
 #define configTICK_RATE_HZ                      1000
-#define configMAX_PRIORITIES                    4
+#define configMAX_PRIORITIES                    5
 #define configMINIMAL_STACK_SIZE                (512)
 #define configTOTAL_HEAP_SIZE                   (32 * 1024)
 #define configMAX_TASK_NAME_LEN                 32
