@@ -26,6 +26,8 @@
 #include "eeprom_emulation.h"
 #include "lorawan_eeprom_config.h"
 
+eeprom_handle_t lorawan_eeprom_handle;
+
 LmnStatus_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
 {
     if (eeprom_write_array_len(&lorawan_eeprom_handle, addr + 1, buffer, size) != EEPROM_STATUS_OK)
