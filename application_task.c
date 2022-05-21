@@ -51,6 +51,8 @@ void application_task_create(uint32_t priority)
 
 void application_task(void *parameter)
 {
+    application_task_cli_register();
+
     am_hal_gpio_pinconfig(10, g_AM_HAL_GPIO_OUTPUT);
     am_hal_gpio_state_write(10, AM_HAL_GPIO_OUTPUT_SET);
 
