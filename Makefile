@@ -40,6 +40,7 @@ LFLAGS_DBG += $(patsubst lib%.a,-l%,$(subst :, , $(LIBS_DBG)))
 LFLAGS_DBG += --specs=nano.specs
 LFLAGS_DBG += --specs=nosys.specs
 LFLAGS_DBG += -Wl,--end-group
+LFLAGS_REL += -Wl,--gc-sections
 
 
 LIBS_REL += $(HAL_LIB_REL)
@@ -57,6 +58,7 @@ LFLAGS_REL += $(patsubst lib%.a,-l%,$(subst :, , $(LIBS_REL)))
 LFLAGS_REL += --specs=nano.specs
 LFLAGS_REL += --specs=nosys.specs
 LFLAGS_REL += -Wl,--end-group
+LFLAGS_REL += -Wl,--gc-sections
 
 SDK_CONFIGS += FREERTOS_CONFIG=$(FREERTOS_CONFIG)
 SDK_CONFIGS += LORAWAN_EEPROM_CONFIG=$(LORAWAN_EEPROM_CONFIG)
