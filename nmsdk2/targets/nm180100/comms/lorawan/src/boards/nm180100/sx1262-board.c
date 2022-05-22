@@ -38,6 +38,8 @@
 #include <sx126x-board.h>
 #include <utilities.h>
 
+#include "lorawan_power.h"
+
 #define SX1262_IOM_MODULE 3
 #define RADIO_NRESET      44
 #define RADIO_BUSY        39
@@ -83,6 +85,8 @@ static am_hal_iom_config_t SX126xSpi;
 static void *              SX126xHandle;
 
 static RadioOperatingModes_t OperatingMode;
+
+static void (*SX126xL3RadioIrqHandle)(void *) = NULL;
 
 static uint8_t SX126xSpiRead(uint8_t cmd, uint8_t *buf, uint8_t len)
 {
@@ -244,9 +248,20 @@ void SX126xIoInit(void)
     am_hal_iom_enable(SX126xHandle);
 }
 
+void SX126xIoIrqHandler(void)
+{
+    if (SX126xL3RadioIrqHandle)
+    {
+        SX126xL3RadioIrqHandle(NULL);
+    }
+
+    lorawan_wake_on_radio_irq();
+}
+
 void SX126xIoIrqInit(DioIrqHandler dioIrq)
 {
-    am_hal_gpio_interrupt_register(RADIO_DIO1, (am_hal_gpio_handler_t)dioIrq);
+    SX126xL3RadioIrqHandle = dioIrq;
+    am_hal_gpio_interrupt_register(RADIO_DIO1, SX126xIoIrqHandler);
     am_hal_gpio_interrupt_clear(AM_HAL_GPIO_BIT(RADIO_DIO1));
     am_hal_gpio_interrupt_enable(AM_HAL_GPIO_BIT(RADIO_DIO1));
     NVIC_EnableIRQ(GPIO_IRQn);

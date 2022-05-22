@@ -51,6 +51,7 @@ extern TaskHandle_t lorawan_task_handle;
 extern QueueHandle_t lorawan_task_queue;
 
 extern void lorawan_task_create(uint32_t priority);
+extern void lorawan_task_wake();
 
 #define LM_APPLICATION_PORT 1
 #define LM_MULTICAST_PORT   200

@@ -40,6 +40,8 @@
 #include <systime.h>
 #include <timer.h>
 
+#include "lorawan_power.h"
+
 // The typical transition time from deep-sleep to run mode is 25us (Chapter 22.4).
 // A single alarm tick using a 32.768kHz crystal is about 30.5us.  At the nominal
 // processor clock speed (48MHz), 1525 instructions can be processed in one alarm
@@ -66,35 +68,16 @@ typedef struct {
 static RtcTimerContext_t RtcTimerContext;
 static uint32_t rtc_backup[2];
 
-static uint32_t rtc_irq_handled = 0;
-
-void am_stimer_cmpr2_isr(void)
+void am_stimer_cmpr0_isr(void)
 {
-    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREC);
-
-    rtc_irq_handled = 1;
-    if (RtcTimerContext.Running) {
-        if (am_hal_stimer_counter_get() >= RtcTimerContext.Alarm_Ticks) {
-            RtcTimerContext.Running = false;
-            TimerIrqHandler();
-        }
-    }
-}
-
-void am_stimer_cmpr3_isr(void)
-{
-    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPARED);
-
-    if (rtc_irq_handled)
-    {
-        rtc_irq_handled = 0;
-        return;
-    }
+    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREA);
 
     if (RtcTimerContext.Running) {
         if (am_hal_stimer_counter_get() >= RtcTimerContext.Alarm_Ticks) {
             RtcTimerContext.Running = false;
             TimerIrqHandler();
+            
+            lorawan_wake_on_timer_irq();
         }
     }
 }
@@ -102,15 +85,13 @@ void am_stimer_cmpr3_isr(void)
 void RtcInit(void)
 {
     if (RtcInitialized == false) {
-        am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREC); // | AM_HAL_STIMER_INT_COMPARED);
-        NVIC_EnableIRQ(STIMER_CMPR2_IRQn);
-        //NVIC_EnableIRQ(STIMER_CMPR3_IRQn);
+        am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREA);
+        NVIC_EnableIRQ(STIMER_CMPR0_IRQn);
 
         am_hal_stimer_config(AM_HAL_STIMER_CFG_CLEAR |
                              AM_HAL_STIMER_CFG_FREEZE);
         am_hal_stimer_config(CLOCK_SOURCE |
-                AM_HAL_STIMER_CFG_COMPARE_C_ENABLE); // |
-         //       AM_HAL_STIMER_CFG_COMPARE_D_ENABLE);
+                AM_HAL_STIMER_CFG_COMPARE_A_ENABLE);
 
         RtcSetTimerContext();
 
@@ -160,10 +141,8 @@ void RtcSetAlarm(uint32_t timeout) { RtcStartAlarm(timeout); }
 
 void RtcStopAlarm(void)
 {
-    am_hal_stimer_int_disable(AM_HAL_STIMER_INT_COMPAREC);
-//    am_hal_stimer_int_disable(AM_HAL_STIMER_INT_COMPARED);
-    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREC);
-//    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPARED);
+    am_hal_stimer_int_disable(AM_HAL_STIMER_INT_COMPAREA);
+    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREA);
     RtcTimerContext.Running = false;
 }
 
@@ -177,10 +156,8 @@ void RtcStartAlarm(uint32_t timeout)
     uint32_t relative = timeout - RtcGetTimerElapsedTime();
 
     RtcTimerContext.Running     = true;
-    am_hal_stimer_compare_delta_set(2, relative);
-//    am_hal_stimer_compare_delta_set(3, relative + 1);
-    am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREC);
-//    am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPARED);
+    am_hal_stimer_compare_delta_set(0, relative);
+    am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREA);
 }
 
 uint32_t RtcGetTimerValue(void) { return am_hal_stimer_counter_get(); }

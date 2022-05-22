@@ -184,12 +184,15 @@ static void OnBeaconStatusChange(LoRaMacHandlerBeaconParams_t *params)
 
 static void OnMacProcess(void)
 {
+    /*
     // this is called inside an IRQ
     MacProcessing = true;
     timeout = 0;
 #if defined(AM_BSP_GPIO_LED4)
     am_hal_gpio_state_write(AM_BSP_GPIO_LED4, AM_HAL_GPIO_OUTPUT_SET);
 #endif // defined(AM_BSP_GPIO_LED4)
+*/
+    lorawan_task_wake();
 }
 
 static void OnJoinRequest(LmHandlerJoinParams_t *params)
@@ -446,7 +449,7 @@ void application_handle_command()
     // when it is appropriate to sleep.  We also do not explicitly go to
     // sleep directly and simply do a task yield.  This allows other timing
     // critical radios such as BLE to run their state machines.
-    if (xQueueReceive(lorawan_task_queue, &TaskMessage, timeout) == pdPASS)
+    if (xQueueReceive(lorawan_task_queue, &TaskMessage, 0) == pdPASS)
     {
         switch (TaskMessage.ui32Event)
         {
@@ -581,6 +584,20 @@ static void dump_ota_status(void)
     }
 }
 
+void lorawan_wake_on_radio_irq()
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xTaskNotifyFromISR(lorawan_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+void lorawan_wake_on_timer_irq()
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xTaskNotifyFromISR(lorawan_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
 void lorawan_task(void *pvParameters)
 {
     FreeRTOS_CLIRegisterCommand(&LoRaWANCommandDefinition);
@@ -593,13 +610,20 @@ void lorawan_task(void *pvParameters)
 
     application_setup();
 
+    am_hal_gpio_pinconfig(17, g_AM_HAL_GPIO_OUTPUT);
+    am_hal_gpio_state_write(17, AM_HAL_GPIO_OUTPUT_SET);
+
     TransmitPending = false;
     timeout = portMAX_DELAY;
     while (1)
     {
+        application_handle_command();
         LmHandlerProcess();
         application_handle_uplink();
 
+        xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
+        am_hal_gpio_state_write(AM_BSP_GPIO_LED4, AM_HAL_GPIO_OUTPUT_TOGGLE);
+/*
         if (MacProcessing)
         {
             taskENTER_CRITICAL();
@@ -610,10 +634,9 @@ void lorawan_task(void *pvParameters)
         else
         {
 #if defined(AM_BSP_GPIO_LED4)
-            am_hal_gpio_state_write(AM_BSP_GPIO_LED4, AM_HAL_GPIO_OUTPUT_CLEAR);
 #endif // defined(AM_BSP_GPIO_LED4)
-            application_handle_command();
         }
+*/
     }
 }
 
@@ -626,3 +649,7 @@ void lorawan_task_create(uint32_t priority)
         &lorawan_task_handle);
 }
 
+void lorawan_task_wake()
+{
+    xTaskNotify(lorawan_task_handle, 0, eNoAction);
+}

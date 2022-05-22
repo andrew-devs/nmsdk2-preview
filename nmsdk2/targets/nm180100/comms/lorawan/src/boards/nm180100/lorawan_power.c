@@ -32,7 +32,7 @@
 #include "lorawan_power.h"
 
 void lorawan_wake_on_radio_irq(void)  __attribute ((weak, alias("lorawan_wake")));
-void lorawan_wake_on_timer(void)      __attribute ((weak, alias("lorawan_wake")));
+void lorawan_wake_on_timer_irq(void)  __attribute ((weak, alias("lorawan_wake")));
 
 void lorawan_wake(void)
 {

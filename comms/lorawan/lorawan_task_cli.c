@@ -272,6 +272,7 @@ void prvApplicationSendSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
     TaskMessage.ui32Event = SEND;
     TaskMessage.psContent = &LmAppData;
     xQueueSend(lorawan_task_queue, &TaskMessage, portMAX_DELAY);
+    lorawan_task_wake();
 }
 
 void prvApplicationPeriodicSubCommand(char *pcWriteBuffer,
@@ -478,6 +479,8 @@ portBASE_TYPE prvLoRaWANCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
         task_message_t TaskMessage;
         TaskMessage.ui32Event = JOIN;
         xQueueSend(lorawan_task_queue, &TaskMessage, portMAX_DELAY);
+
+        lorawan_task_wake();
     }
     else if (strncmp(pcParameterString, "reset", xParameterStringLength) == 0)
     {

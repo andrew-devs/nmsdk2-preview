@@ -33,6 +33,6 @@
 #define __LORAWAN_POWER_H__
 
 extern void lorawan_wake_on_radio_irq(void);
-extern void lorawan_wake_on_timer(void);
+extern void lorawan_wake_on_timer_irq(void);
 
 #endif

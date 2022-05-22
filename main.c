@@ -68,14 +68,6 @@ uint32_t am_freertos_sleep(uint32_t idleTime)
 //*****************************************************************************
 void am_freertos_wakeup(uint32_t idleTime)
 {
-    if (lorawan_task_queue)
-    {
-        portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-        task_message_t task_message;
-        task_message.ui32Event = WAKE;
-        xQueueSendFromISR(lorawan_task_queue, &task_message,
-                        &xHigherPriorityTaskWoken);
-    }
 }
 
 void am_gpio_isr(void)
