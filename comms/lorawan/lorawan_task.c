@@ -59,6 +59,7 @@
 #include "lorawan_task_cli.h"
 #include "console_task.h"
 #include "task_message.h"
+#include "ota_config.h"
 
 #define LORAWAN_DEFAULT_CLASS CLASS_A
 
@@ -327,7 +328,6 @@ static void OnFragProgress(uint16_t counter, uint16_t blocks, uint8_t size,
 
 static void OnFragDone(int32_t status, uint32_t size)
 {
-    /*
     uint32_t rx_crc = Crc32((uint8_t *)OTA_FLASH_ADDRESS, size);
 
     FragDataBlockAuthReqBuffer[0] = 0x05;
@@ -349,12 +349,10 @@ static void OnFragDone(int32_t status, uint32_t size)
     am_util_stdio_printf("STATUS : %ld\r\n", status);
     am_util_stdio_printf("SIZE   : %ld\r\n", size);
     am_util_stdio_printf("CRC    : %08lX\n\n", rx_crc);
-    */
 }
 
 static int8_t FragDecoderWrite(uint32_t offset, uint8_t *data, uint32_t size)
 {
-/*
     uint32_t *destination = (uint32_t *)(OTA_FLASH_ADDRESS + offset);
     uint32_t source[64];
     uint32_t length = size >> 2;
@@ -369,25 +367,21 @@ static int8_t FragDecoderWrite(uint32_t offset, uint8_t *data, uint32_t size)
                               length);
 
     taskEXIT_CRITICAL();
-    */
     return 0;
 }
 
 static int8_t FragDecoderRead(uint32_t offset, uint8_t *data, uint32_t size)
 {
-    /*
     uint8_t *UnfragmentedData = (uint8_t *)(OTA_FLASH_ADDRESS);
     for (uint32_t i = 0; i < size; i++)
     {
         data[i] = UnfragmentedData[offset + i];
     }
-    */
     return 0;
 }
 
 static int8_t FragDecoderErase(uint32_t offset, uint32_t size)
 {
-    /*
     uint32_t totalPage = (size >> 13) + 1;
     uint32_t address = OTA_FLASH_ADDRESS;
 
@@ -409,7 +403,7 @@ static int8_t FragDecoderErase(uint32_t offset, uint32_t size)
 
         taskEXIT_CRITICAL();
     }
-*/
+
     return 0;
 }
 
@@ -543,7 +537,6 @@ static char *otaStatusMessage[] = {"Success", "Error", "Failure", "Pending"};
 
 static void dump_ota_status(void)
 {
-    /*
     uint32_t *pOtaDesc =
         (uint32_t *)(OTA_POINTER_LOCATION & ~(AM_HAL_FLASH_PAGE_SIZE - 1));
     uint32_t i;
@@ -586,7 +579,6 @@ static void dump_ota_status(void)
     {
         am_util_stdio_printf("\r\nNo Previous OTA state\r\n");
     }
-    */
 }
 
 void lorawan_task(void *pvParameters)
