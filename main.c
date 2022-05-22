@@ -44,6 +44,7 @@
 #include "application_task.h"
 #include "lorawan_task.h"
 #include "console_task.h"
+#include "task_message.h"
 
 //*****************************************************************************
 //
@@ -67,6 +68,14 @@ uint32_t am_freertos_sleep(uint32_t idleTime)
 //*****************************************************************************
 void am_freertos_wakeup(uint32_t idleTime)
 {
+    if (lorawan_task_queue)
+    {
+        portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+        task_message_t task_message;
+        task_message.ui32Event = WAKE;
+        xQueueSendFromISR(lorawan_task_queue, &task_message,
+                        &xHigherPriorityTaskWoken);
+    }
 }
 
 void am_gpio_isr(void)
@@ -144,6 +153,8 @@ void system_setup(void)
     am_hal_rtc_osc_disable();
 
     NVIC_SetPriority(GPIO_IRQn, NVIC_configKERNEL_INTERRUPT_PRIORITY);
+    NVIC_SetPriority(STIMER_CMPR0_IRQn, NVIC_configKERNEL_INTERRUPT_PRIORITY);
+    NVIC_SetPriority(STIMER_CMPR1_IRQn, NVIC_configKERNEL_INTERRUPT_PRIORITY);
     NVIC_SetPriority(STIMER_CMPR2_IRQn, NVIC_configKERNEL_INTERRUPT_PRIORITY);
     NVIC_SetPriority(STIMER_CMPR3_IRQn, NVIC_configKERNEL_INTERRUPT_PRIORITY);
 

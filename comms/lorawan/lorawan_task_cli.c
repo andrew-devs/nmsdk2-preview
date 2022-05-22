@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2022, Northern Mechatronics, Inc.
+ * Copyright (c) 2020, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,79 +29,496 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <am_bsp.h>
 #include <am_mcu_apollo.h>
 #include <am_util.h>
 
 #include <FreeRTOS.h>
 #include <FreeRTOS_CLI.h>
+#include <queue.h>
+
+#include <LmHandler.h>
+#include <LmHandlerMsgDisplay.h>
+#include <LmhpCompliance.h>
+#include <NvmDataMgmt.h>
+#include <board.h>
+#include <timer.h>
+
+#include "eeprom_emulation.h"
+#include "eeprom_emulation_conf.h"
 
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
+#include "console_task.h"
+#include "task_message.h"
 
-static portBASE_TYPE lorawan_task_cli_entry(
-    char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command);
+portBASE_TYPE prvLoRaWANCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
+                                    const char *pcCommandString);
 
-static CLI_Command_Definition_t lorawan_task_cli_definition = {
+CLI_Command_Definition_t LoRaWANCommandDefinition = {
     (const char *const) "lorawan",
-    (const char *const) "lorawan:\tlorawan Commands.\r\n",
-    lorawan_task_cli_entry, -1};
+    (const char *const) "lorawan:\tLoRaWAN Application Framework.\r\n",
+    prvLoRaWANCommand, -1};
 
-static size_t argc;
-static char *argv[8];
-static char  argz[128];
-
-void lorawan_task_cli_register()
+static void ConvertHexString(const char *in, size_t inlen, uint8_t *out,
+                             size_t *outlen)
 {
-    FreeRTOS_CLIRegisterCommand(&lorawan_task_cli_definition);
-    argc = 0;
-}
-
-static void help(char *pui8OutBuffer, size_t argc, char **argv)
-{
-    strcat(pui8OutBuffer, "\r\nusage: lorawan <command>\r\n");
-    strcat(pui8OutBuffer, "\r\n");
-    strcat(pui8OutBuffer, "supported commands are:\r\n");
-    strcat(pui8OutBuffer, "  reset\r\n");
-    strcat(pui8OutBuffer, "  join\r\n");
-    strcat(pui8OutBuffer, "  send\r\n");
-}
-
-static void join(char *pui8OutBuffer, size_t argc, char **argv)
-{
-    lorawan_send_command(LORAWAN_JOIN);
-}
-
-static void send(char *pui8OutBuffer, size_t argc, char **argv)
-{
-    lorawan_transmit(0, 1, 0, NULL);
-}
-
-portBASE_TYPE lorawan_task_cli_entry(
-    char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command)
-{
-    pui8OutBuffer[0] = 0;
-
-    strcpy(argz, pui8Command);
-    FreeRTOS_CLIExtractParameters(argz, &argc, argv);
-
-    if (strcmp(argv[1], "help") == 0)
+    size_t n = 0;
+    char cNum[3];
+    *outlen = 0;
+    while (n < inlen)
     {
-        help(pui8OutBuffer, argc, argv);
+        switch (in[n])
+        {
+        case '\\':
+            n++;
+            switch (in[n])
+            {
+            case 'x':
+                n++;
+                memset(cNum, 0, 3);
+                memcpy(cNum, &in[n], 2);
+                n++;
+                out[*outlen] = strtol(cNum, NULL, 16);
+                break;
+            }
+            break;
+        default:
+            out[*outlen] = in[n];
+            break;
+        }
+        *outlen = *outlen + 1;
+        n++;
     }
-    else if (strcmp(argv[1], "reset") == 0)
+}
+
+void prvApplicationHelpSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
+                                  const char *pcCommandString)
+{
+    const char *pcParameterString;
+    portBASE_TYPE xParameterStringLength;
+
+    pcParameterString =
+        FreeRTOS_CLIGetParameter(pcCommandString, 2, &xParameterStringLength);
+
+    if (pcParameterString == NULL)
     {
-        NVIC_SystemReset();
+        strcat(pcWriteBuffer, "usage: lorawan [command] [<args>]\r\n");
+        strcat(pcWriteBuffer, "\r\n");
+        strcat(pcWriteBuffer, "Supported commands are:\r\n");
+        strcat(pcWriteBuffer, "  join\r\n");
+        strcat(pcWriteBuffer, "  reset\r\n");
+        strcat(pcWriteBuffer, "  class\r\n");
+        strcat(pcWriteBuffer, "  send\r\n");
+        strcat(pcWriteBuffer, "  periodic\r\n");
+        strcat(pcWriteBuffer, "  format\r\n");
+        strcat(pcWriteBuffer, "  sync\r\n");
+        strcat(pcWriteBuffer, "  datetime\r\n");
+        strcat(pcWriteBuffer, "\r\n");
+        strcat(pcWriteBuffer, "See 'lorawan help [command] for the details "
+                              "of each command.\r\n");
     }
-    else if (strcmp(argv[1], "join") == 0)
+    else if (strncmp(pcParameterString, "join", 4) == 0)
     {
-        join(pui8OutBuffer, argc, argv);
+        strcat(pcWriteBuffer, "usage: lorawan join\r\n");
+        strcat(pcWriteBuffer, "Join a LoRaWAN network.\r\n");
     }
-    else if (strcmp(argv[1], "send") == 0)
+    else if (strncmp(pcParameterString, "reset", 5) == 0)
     {
-        send(pui8OutBuffer, argc, argv);
+        strcat(pcWriteBuffer, "usage: lorawan reset\r\n");
+        strcat(pcWriteBuffer, "Stop and reset the LoRaMac stack.\r\n");
+    }
+    else if (strncmp(pcParameterString, "class", 5) == 0)
+    {
+        strcat(pcWriteBuffer, "usage: lorawan class [get | set <class>]\r\n");
+        strcat(pcWriteBuffer, "\r\n");
+    }
+    else if (strncmp(pcParameterString, "send", 3) == 0)
+    {
+        strcat(pcWriteBuffer, "usage: lorawan send <port> <ack> [msg]\r\n");
+        strcat(pcWriteBuffer, "\r\n");
+        strcat(pcWriteBuffer, "Where:\r\n");
+        strcat(pcWriteBuffer, "  port  is the uplink port number\r\n");
+        strcat(pcWriteBuffer,
+               "  ack   request message confirmation from the server\r\n");
+        strcat(pcWriteBuffer, "  msg   payload content\r\n");
+    }
+    else if (strncmp(pcParameterString, "periodic", 8) == 0)
+    {
+        strcat(pcWriteBuffer,
+               "usage: lorawan periodic [start <period>|stop]\r\n");
+        strcat(pcWriteBuffer, "\r\n");
+        strcat(pcWriteBuffer, "Where:\r\n");
+        strcat(pcWriteBuffer,
+               "  start   to begin transmitting periodically\r\n");
+        strcat(pcWriteBuffer, "  stop    to stop transmitting\r\n");
+        strcat(pcWriteBuffer, "  period  defines how often to transmit in "
+                              "seconds (default is 10s)\r\n");
+    }
+    else if (strncmp(pcParameterString, "format", 3) == 0)
+    {
+        strcat(pcWriteBuffer, "usage: lorawan format\r\n");
+        strcat(pcWriteBuffer, "delete and format context storage.\r\n");
+    }
+    else if (strncmp(pcParameterString, "sync", 3) == 0)
+    {
+        strcat(pcWriteBuffer, "usage: lorawan sync [app|mac]\r\n");
+        strcat(pcWriteBuffer,
+               "app  time synchronization using the application layer.\r\n");
+        strcat(pcWriteBuffer,
+               "mac  time synchronization using the MAC layer.\r\n");
+        strcat(pcWriteBuffer, "Note:  Only valid if the network server "
+                              "supports the command.\r\n");
+    }
+    else if (strncmp(pcParameterString, "datetime", 3) == 0)
+    {
+        strcat(pcWriteBuffer, "usage: lorawan datetime\r\n");
+        strcat(pcWriteBuffer, "Display the current system time.\r\n");
+    }
+}
+
+void prvApplicationSendSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
+                                  const char *pcCommandString)
+{
+    const char *pcParameterString;
+    portBASE_TYPE xParameterStringLength;
+
+    LmHandlerMsgTypes_t ack = LORAMAC_HANDLER_UNCONFIRMED_MSG;
+    uint8_t port = LM_APPLICATION_PORT;
+    uint8_t argc = FreeRTOS_CLIGetNumberOfParameters(pcCommandString);
+
+    pcParameterString =
+        FreeRTOS_CLIGetParameter(pcCommandString, 2, &xParameterStringLength);
+    switch (argc)
+    {
+    case 2:
+    {
+        memcpy(psLmDataBuffer, pcParameterString, xParameterStringLength);
+    }
+    break;
+    case 3:
+    {
+        pcParameterString = FreeRTOS_CLIGetParameter(pcCommandString, 2,
+                                                     &xParameterStringLength);
+        if (pcParameterString == NULL)
+        {
+            strcat(pcWriteBuffer, "error: missing port number\r\n");
+            return;
+        }
+        else
+        {
+            port = atoi(pcParameterString);
+        }
+
+        pcParameterString = FreeRTOS_CLIGetParameter(pcCommandString, 3,
+                                                     &xParameterStringLength);
+        memcpy(psLmDataBuffer, pcParameterString, xParameterStringLength);
+    }
+    break;
+    case 4:
+    {
+        pcParameterString = FreeRTOS_CLIGetParameter(pcCommandString, 2,
+                                                     &xParameterStringLength);
+        if (pcParameterString == NULL)
+        {
+            strcat(pcWriteBuffer, "error: missing port number\r\n");
+            return;
+        }
+        else
+        {
+            port = atoi(pcParameterString);
+        }
+
+        pcParameterString = FreeRTOS_CLIGetParameter(pcCommandString, 3,
+                                                     &xParameterStringLength);
+        if (pcParameterString == NULL)
+        {
+            strcat(pcWriteBuffer,
+                   "error: missing acknowledgement parameter\r\n");
+            return;
+        }
+        else
+        {
+            ack = atoi(pcParameterString) > 0 ? LORAMAC_HANDLER_CONFIRMED_MSG
+                                              : LORAMAC_HANDLER_UNCONFIRMED_MSG;
+        }
+        pcParameterString = FreeRTOS_CLIGetParameter(pcCommandString, 4,
+                                                     &xParameterStringLength);
+        memcpy(psLmDataBuffer, pcParameterString, xParameterStringLength);
+    }
+    break;
+    }
+
+    size_t length;
+    ConvertHexString(pcParameterString, xParameterStringLength, psLmDataBuffer,
+                     &length);
+
+    LmAppData.Port = port;
+    LmAppData.BufferSize = length;
+    LmAppData.Buffer = psLmDataBuffer;
+    LmMsgType = ack;
+
+    psLmDataBuffer[length] = 0;
+    am_util_stdio_printf((char *)psLmDataBuffer);
+    am_util_stdio_printf("\r\n");
+
+    task_message_t TaskMessage;
+    TaskMessage.ui32Event = SEND;
+    TaskMessage.psContent = &LmAppData;
+    xQueueSend(lorawan_task_queue, &TaskMessage, portMAX_DELAY);
+}
+
+void prvApplicationPeriodicSubCommand(char *pcWriteBuffer,
+                                      size_t xWriteBufferLen,
+                                      const char *pcCommandString)
+{
+}
+
+void prvApplicationSyncSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
+                                  const char *pcCommandString)
+{
+    task_message_t TaskMessage;
+
+    const char *pcParameterString;
+    portBASE_TYPE xParameterStringLength;
+
+    pcParameterString =
+        FreeRTOS_CLIGetParameter(pcCommandString, 2, &xParameterStringLength);
+    if (pcParameterString == NULL)
+    {
+        return;
+    }
+
+    if (strncmp(pcParameterString, "app", xParameterStringLength) == 0)
+    {
+        TaskMessage.ui32Event = SYNC_APP;
+        xQueueSend(lorawan_task_queue, &TaskMessage, portMAX_DELAY);
+    }
+    else if (strncmp(pcParameterString, "mac", xParameterStringLength) == 0)
+    {
+        TaskMessage.ui32Event = SYNC_MAC;
+        xQueueSend(lorawan_task_queue, &TaskMessage, portMAX_DELAY);
+    }
+}
+
+void prvApplicationDatetimeSubCommand(char *pcWriteBuffer,
+                                      size_t xWriteBufferLen,
+                                      const char *pcCommandString)
+{
+    am_hal_rtc_time_t hal_rtc_time;
+    am_hal_rtc_time_get(&hal_rtc_time);
+
+    struct tm ts;
+
+    ts.tm_hour = hal_rtc_time.ui32Hour;
+    ts.tm_min = hal_rtc_time.ui32Minute;
+    ts.tm_sec = hal_rtc_time.ui32Second;
+    ts.tm_year = hal_rtc_time.ui32Year + 2000 - 1900;
+    ts.tm_mon = hal_rtc_time.ui32Month;
+    ts.tm_mday = hal_rtc_time.ui32DayOfMonth;
+
+    char *buf = pcWriteBuffer + strlen(pcWriteBuffer);
+    strftime(buf, 64, "Hardware Time: %Y-%m-%d %H:%M:%S %Z\r\n", &ts);
+
+    SysTime_t curtime = SysTimeGet();
+    buf += strlen(buf);
+    am_util_stdio_sprintf(buf, "LoRaMAC Stack Time: %d\r\n", curtime.Seconds);
+}
+
+void prvApplicationClassSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
+                                  const char *pcCommandString)
+{
+    const char *pcParameterString;
+    portBASE_TYPE xParameterStringLength;
+
+    pcParameterString =
+        FreeRTOS_CLIGetParameter(pcCommandString, 2, &xParameterStringLength);
+    if (pcParameterString == NULL)
+    {
+        return;
+    }
+
+    if (strncmp(pcParameterString, "get", xParameterStringLength) == 0)
+    {
+        DeviceClass_t cls = LmHandlerGetCurrentClass();
+        switch(cls)
+        {
+        case CLASS_A:
+            am_util_stdio_printf("Class A\r\n");
+            break;
+        case CLASS_B:
+            am_util_stdio_printf("Class B\r\n");
+            break;
+        case CLASS_C:
+            am_util_stdio_printf("Class C\r\n");
+            break;
+        }
+    }
+    else if (strncmp(pcParameterString, "set", xParameterStringLength) == 0)
+    {
+        pcParameterString =
+            FreeRTOS_CLIGetParameter(pcCommandString, 3, &xParameterStringLength);
+        if (pcParameterString == NULL)
+        {
+            am_util_stdio_printf("Missing class specifier\r\n");
+            return;
+        }
+
+        if (strcmp(pcParameterString, "A") == 0)
+        {
+            LmHandlerRequestClass(CLASS_A);
+            am_util_stdio_printf("Class A requested\r\n");
+        }
+        else if (strcmp(pcParameterString, "B") == 0)
+        {
+            LmHandlerRequestClass(CLASS_B);
+            am_util_stdio_printf("Class B requested\r\n");
+        }
+        else if (strcmp(pcParameterString, "C") == 0)
+        {
+            LmHandlerRequestClass(CLASS_C);
+            am_util_stdio_printf("Class C requested\r\n");
+        }
+    }
+}
+
+void prvApplicationOtaSubCommand(char *pcWriteBuffer,
+                                      size_t xWriteBufferLen,
+                                      const char *pcCommandString)
+{
+    /*
+    const char *pcParameterString;
+    portBASE_TYPE xParameterStringLength;
+
+    pcParameterString =
+        FreeRTOS_CLIGetParameter(pcCommandString, 2, &xParameterStringLength);
+
+    if (pcParameterString == NULL)
+    {
+        uint32_t *pOtaDesc = (uint32_t *)(OTA_POINTER_LOCATION);
+        am_hal_ota_init(AM_HAL_FLASH_PROGRAM_KEY, pOtaDesc);
+
+        uint8_t  magic = ((uint8_t *)OTA_FLASH_ADDRESS)[3];
+        am_hal_ota_add(AM_HAL_FLASH_PROGRAM_KEY, magic, (uint32_t *)(OTA_FLASH_ADDRESS));
+
+        return;
+    }
+
+    if (strncmp(pcParameterString, "erase", xParameterStringLength) == 0)
+    {
+        pcParameterString =
+            FreeRTOS_CLIGetParameter(pcCommandString, 3, &xParameterStringLength);
+        if (pcParameterString == NULL)
+        {
+            am_util_stdio_printf("Missing address\r\n");
+            return;
+        }
+
+        uint32_t address = strtol(pcParameterString, NULL, 0);
+
+        am_hal_flash_page_erase(AM_HAL_FLASH_PROGRAM_KEY,
+                AM_HAL_FLASH_ADDR2INST(address),
+                AM_HAL_FLASH_ADDR2PAGE(address));
+    }
+    else if (strncmp(pcParameterString, "write", xParameterStringLength) == 0)
+    {
+        pcParameterString =
+            FreeRTOS_CLIGetParameter(pcCommandString, 3, &xParameterStringLength);
+        if (pcParameterString == NULL)
+        {
+            am_util_stdio_printf("Missing address\r\n");
+            return;
+        }
+        uint32_t address = strtol(pcParameterString, NULL, 0);
+
+        pcParameterString =
+            FreeRTOS_CLIGetParameter(pcCommandString, 4, &xParameterStringLength);
+        if (pcParameterString == NULL)
+        {
+            am_util_stdio_printf("Missing value\r\n");
+            return;
+        }
+
+        uint32_t value = strtol(pcParameterString, NULL, 0);
+
+        am_hal_flash_program_main(AM_HAL_FLASH_PROGRAM_KEY, &value,
+                (uint32_t *)address, 1);
+    }
+    */
+}
+
+portBASE_TYPE prvLoRaWANCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
+                                    const char *pcCommandString)
+{
+    const char *pcParameterString;
+    portBASE_TYPE xParameterStringLength;
+
+    pcWriteBuffer[0] = 0x0;
+
+    pcParameterString =
+        FreeRTOS_CLIGetParameter(pcCommandString, 1, &xParameterStringLength);
+    if (pcParameterString == NULL)
+    {
+        return pdFALSE;
+    }
+
+    if (strncmp(pcParameterString, "help", xParameterStringLength) == 0)
+    {
+        prvApplicationHelpSubCommand(pcWriteBuffer, xWriteBufferLen,
+                                     pcCommandString);
+    }
+    else if (strncmp(pcParameterString, "join", xParameterStringLength) == 0)
+    {
+        task_message_t TaskMessage;
+        TaskMessage.ui32Event = JOIN;
+        xQueueSend(lorawan_task_queue, &TaskMessage, portMAX_DELAY);
+    }
+    else if (strncmp(pcParameterString, "reset", xParameterStringLength) == 0)
+    {
+        LoRaMacDeInitialization();
+    }
+    else if (strncmp(pcParameterString, "class", xParameterStringLength) == 0)
+    {
+        prvApplicationClassSubCommand(pcWriteBuffer, xWriteBufferLen,
+                pcCommandString);
+    }
+    else if (strncmp(pcParameterString, "send", xParameterStringLength) == 0)
+    {
+        prvApplicationSendSubCommand(pcWriteBuffer, xWriteBufferLen,
+                                     pcCommandString);
+    }
+    else if (strncmp(pcParameterString, "periodic", xParameterStringLength) ==
+             0)
+    {
+        prvApplicationPeriodicSubCommand(pcWriteBuffer, xWriteBufferLen,
+                                         pcCommandString);
+    }
+    else if (strncmp(pcParameterString, "format", xParameterStringLength) == 0)
+    {
+        eeprom_format(EEPROM_EMULATION_FLASH_PAGES);
+        eeprom_init(EEPROM_EMULATION_FLASH_PAGES);
+    }
+    else if (strncmp(pcParameterString, "sync", xParameterStringLength) == 0)
+    {
+        prvApplicationSyncSubCommand(pcWriteBuffer, xWriteBufferLen,
+                                     pcCommandString);
+    }
+    else if (strncmp(pcParameterString, "datetime", xParameterStringLength) ==
+             0)
+    {
+        prvApplicationDatetimeSubCommand(pcWriteBuffer, xWriteBufferLen,
+                                         pcCommandString);
+    }
+    else if (strncmp(pcParameterString, "ota", xParameterStringLength) == 0)
+    {
+        prvApplicationOtaSubCommand(pcWriteBuffer, xWriteBufferLen,
+                                         pcCommandString);
     }
 
     return pdFALSE;

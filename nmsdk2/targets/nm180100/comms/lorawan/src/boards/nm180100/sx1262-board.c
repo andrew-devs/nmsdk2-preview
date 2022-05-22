@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2022, Northern Mechatronics, Inc.
+ * Copyright (c) 2021, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,6 @@
 #include <radio.h>
 #include <sx126x-board.h>
 #include <utilities.h>
-
-#include "lorawan_power.h"
 
 #define SX1262_IOM_MODULE 3
 #define RADIO_NRESET      44
@@ -83,8 +81,6 @@ static const am_hal_gpio_pincfg_t s_RADIO_NSS = {
 
 static am_hal_iom_config_t SX126xSpi;
 static void *              SX126xHandle;
-
-static void               (*SX126xRadioHandle)() = NULL;
 
 static RadioOperatingModes_t OperatingMode;
 
@@ -248,29 +244,12 @@ void SX126xIoInit(void)
     am_hal_iom_enable(SX126xHandle);
 }
 
-void SX126xIoIrqHandler( void* context )
-{
-    //run radio handler
-    if ( SX126xRadioHandle ) 
-        ( SX126xRadioHandle )();
-
-    lorawan_wake_on_radio_irq();   
-}
-
 void SX126xIoIrqInit(DioIrqHandler dioIrq)
 {
-    SX126xRadioHandle = dioIrq;
-    am_hal_gpio_interrupt_register(RADIO_DIO1, (am_hal_gpio_handler_t)SX126xIoIrqHandler);
+    am_hal_gpio_interrupt_register(RADIO_DIO1, (am_hal_gpio_handler_t)dioIrq);
     am_hal_gpio_interrupt_clear(AM_HAL_GPIO_BIT(RADIO_DIO1));
     am_hal_gpio_interrupt_enable(AM_HAL_GPIO_BIT(RADIO_DIO1));
     NVIC_EnableIRQ(GPIO_IRQn);
-}
-
-uint32_t SX126xGetDio1PinState(void)
-{
-    uint32_t value;
-    am_hal_gpio_state_read(RADIO_DIO1, AM_HAL_GPIO_INPUT_READ, &value);
-    return value;
 }
 
 void SX126xIoDeInit(void)
@@ -410,3 +389,11 @@ void SX126xAntSwOn(void) {}
 void SX126xAntSwOff(void) {}
 
 bool SX126xCheckRfFrequency(uint32_t frequency) { return true; }
+
+uint32_t SX126xGetDio1PinState()
+{
+    uint32_t value;
+    am_hal_gpio_state_read(RADIO_DIO1, AM_HAL_GPIO_INPUT_READ, &value);
+
+    return value;
+}

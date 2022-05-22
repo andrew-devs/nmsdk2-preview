@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2022, Northern Mechatronics, Inc.
+ * Copyright (c) 2020, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,10 +29,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _LORAMAC_LAYER5_H_
-#define _LORAMAC_LAYER5_H_
+#ifndef EEPROM_EMULATION_CONF_H_
+#define EEPROM_EMULATION_CONF_H_
 
-void loramac_layer5_setup();
+#define EEPROM_EMULATION_FLASH_PAGES    (2)
 
-#endif
-
+#endif /* EEPROM_EMULATION_CONF_H_ */

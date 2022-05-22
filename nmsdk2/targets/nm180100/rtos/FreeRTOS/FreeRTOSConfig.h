@@ -8,26 +8,26 @@
 
 //*****************************************************************************
 //
-// Copyright (c) 2021, Ambiq Micro, Inc.
+// Copyright (c) 2019, Ambiq Micro
 // All rights reserved.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
-//
+// 
 // 1. Redistributions of source code must retain the above copyright notice,
 // this list of conditions and the following disclaimer.
-//
+// 
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-//
+// 
 // 3. Neither the name of the copyright holder nor the names of its
 // contributors may be used to endorse or promote products derived from this
 // software without specific prior written permission.
-//
+// 
 // Third party software included in this distribution is subject to the
 // additional license terms as defined in the /docs/licenses directory.
-//
+// 
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -40,7 +40,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 //
-// This is part of revision release_sdk_3_0_0-742e5ac27c of the AmbiqSuite Development Package.
+// This is part of revision v2.2.0-7-g63f7c2ba1 of the AmbiqSuite Development Package.
 //
 //*****************************************************************************
 #ifndef FREERTOS_CONFIG_H
@@ -51,32 +51,31 @@ extern "C"
 {
 #endif
 
+#define configSUPPORT_STATIC_ALLOCATION         0
+
 #define configCOMMAND_INT_MAX_OUTPUT_SIZE       1024
 
 #define configUSE_PREEMPTION                    1
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
+
 #define configCPU_CLOCK_HZ                      48000000UL
 #define configTICK_RATE_HZ                      1000
-#define configMAX_PRIORITIES                    5
+#define configMAX_PRIORITIES                    4
 #define configMINIMAL_STACK_SIZE                (512)
 #define configTOTAL_HEAP_SIZE                   (32 * 1024)
-#define configMAX_TASK_NAME_LEN                 32
+#define configMAX_TASK_NAME_LEN                 16
 #define configUSE_16_BIT_TICKS                  0
 #define configIDLE_SHOULD_YIELD                 1
 
-#define configUSE_TASK_NOTIFICATIONS            1
-#define configTASK_NOTIFICATION_ARRAY_ENTRIES   8
-
 #define configUSE_MUTEXES                       1
 #define configUSE_RECURSIVE_MUTEXES             1
-#define configUSE_COUNTING_SEMAPHORES           1
+#define configUSE_COUNTING_SEMAPHORES           0
 #define configUSE_ALTERNATIVE_API               0 /* Deprecated! */
-#define configQUEUE_REGISTRY_SIZE               32
+#define configQUEUE_REGISTRY_SIZE               10
 #define configUSE_QUEUE_SETS                    0
 #define configUSE_TIME_SLICING                  0
 #define configUSE_NEWLIB_REENTRANT              1
 #define configENABLE_BACKWARD_COMPATIBILITY     0
-#define configNUM_THREAD_LOCAL_STORAGE_POINTERS 2
 
 /* Hook function related definitions. */
 #define configUSE_IDLE_HOOK                     0
@@ -92,7 +91,7 @@ extern "C"
 /* Software timer related definitions. */
 #define configUSE_TIMERS                        1
 #define configTIMER_TASK_PRIORITY               (configMAX_PRIORITIES - 1)
-#define configTIMER_QUEUE_LENGTH                32
+#define configTIMER_QUEUE_LENGTH                16
 #define configTIMER_TASK_STACK_DEPTH            configMINIMAL_STACK_SIZE
 
 /* Interrupt nesting behaviour configuration. */
@@ -116,14 +115,15 @@ extern "C"
 #define INCLUDE_vTaskDelayUntil                 1
 #define INCLUDE_vTaskDelay                      1
 #define INCLUDE_xTaskGetSchedulerState          0
-#define INCLUDE_xTaskGetCurrentTaskHandle       1
-#define INCLUDE_uxTaskGetStackHighWaterMark     0
+#define INCLUDE_xTaskGetCurrentTaskHandle       0
+#define INCLUDE_uxTaskGetStackHighWaterMark     1
 #define INCLUDE_xTaskGetIdleTaskHandle          0
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle  0
-#define INCLUDE_pcTaskGetTaskName               1
-#define INCLUDE_eTaskGetState                   1
+#define INCLUDE_pcTaskGetTaskName               0
+#define INCLUDE_eTaskGetState                   0
 #define INCLUDE_xEventGroupSetBitFromISR        1
 #define INCLUDE_xTimerPendFunctionCall          1
+#define INCLUDE_xQueueGetMutexHolder            1
 
 #define vPortSVCHandler                         SVC_Handler
 #define xPortPendSVHandler                      PendSV_Handler
@@ -132,6 +132,7 @@ extern "C"
 #define configOVERRIDE_DEFAULT_TICK_CONFIGURATION 1 // Enable non-SysTick based Tick
 #define configUSE_TICKLESS_IDLE                   2 // Ambiq specific implementation for Tickless
 
+#if !(defined(__ASSEMBLY__) || defined(__IAR_SYSTEMS_ASM__))
 extern uint32_t am_freertos_sleep(uint32_t);
 extern void am_freertos_wakeup(uint32_t);
 
@@ -141,10 +142,16 @@ extern void am_freertos_wakeup(uint32_t);
     } while (0);
 
 #define configPOST_SLEEP_PROCESSING(time)    am_freertos_wakeup(time)
+#endif
 /*-----------------------------------------------------------*/
-
+#ifdef AM_FREERTOS_USE_STIMER_FOR_TICK
 #define configSTIMER_CLOCK_HZ                     32768
-#define configSTIMER_CLOCK      AM_HAL_STIMER_XTAL_32KHZ
+#define configSTIMER_CLOCK                        AM_HAL_STIMER_XTAL_32KHZ
+#else
+#define configCTIMER_NUM                          3
+#define configCTIMER_CLOCK_HZ                     32768
+#define configCTIMER_CLOCK                        AM_HAL_CTIMER_XT_32_768KHZ
+#endif
 
 #ifdef __cplusplus
 }

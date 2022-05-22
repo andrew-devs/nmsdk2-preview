@@ -3,8 +3,10 @@ VPATH += $(LORAWAN)/src/boards/mcu
 VPATH += $(LORAWAN)/src/mac
 VPATH += $(LORAWAN)/src/mac/region
 VPATH += $(LORAWAN)/src/system
-VPATH += $(LORAWAN)/src/peripherals/soft-se
 VPATH += ./comms/lorawan/src/boards/nm180100
+VPATH += ./comms/lorawan/src/apps/LoRaMac/common
+VPATH += ./comms/lorawan/src/apps/LoRaMac/common/LmHandler
+VPATH += ./comms/lorawan/src/apps/LoRaMac/common/LmHandler/packages
 
 LORAWAN_SRC += radio.c
 LORAWAN_SRC += sx126x.c
@@ -45,3 +47,14 @@ LORAWAN_SRC += rtc-board.c
 LORAWAN_SRC += sx1262-board.c
 
 LORAWAN_SRC += lorawan_power.c
+
+LORAWAN_SRC += eeprom_emulation.c
+
+LORAWAN_SRC += NvmDataMgmt.c
+LORAWAN_SRC += FragDecoder.c
+LORAWAN_SRC += LmhpClockSync.c
+LORAWAN_SRC += LmhpCompliance.c
+LORAWAN_SRC += LmhpFragmentation.c
+LORAWAN_SRC += LmhpRemoteMcastSetup.c
+LORAWAN_SRC += LmHandler.c
+LORAWAN_SRC += LmHandlerMsgDisplay.c

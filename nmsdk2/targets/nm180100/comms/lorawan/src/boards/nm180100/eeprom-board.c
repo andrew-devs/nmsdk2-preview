@@ -23,36 +23,28 @@
 #include <am_mcu_apollo.h>
 #include "utilities.h"
 #include "eeprom-board.h"
-#include "eeprom_emulation.h"
-#include "lorawan_eeprom_config.h"
 
-eeprom_handle_t lorawan_eeprom_handle;
-
-LmnStatus_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
+uint8_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
 {
-    if (eeprom_write_array_len(&lorawan_eeprom_handle, addr + 1, buffer, size) != EEPROM_STATUS_OK)
-    {
-        return LMN_STATUS_ERROR;
-    }
-
-    return LMN_STATUS_OK;
+    eeprom_write_array_len(addr + 1, buffer, size);
+    return 1;
 }
 
-LmnStatus_t EepromMcuReadBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
+uint8_t EepromMcuReadBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
 {
-    if (eeprom_read_array_len(&lorawan_eeprom_handle, addr + 1, buffer, size) != EEPROM_STATUS_OK)
+    if (!eeprom_read_array_len(addr + 1, buffer, size))
     {
-        return LMN_STATUS_ERROR;
+        return 0;
     }
 
-    return LMN_STATUS_OK;
+    return 1;
 }
 
 void EepromMcuSetDeviceAddr( uint8_t addr )
 {
 }
 
-LmnStatus_t EepromMcuGetDeviceAddr( void )
+uint8_t EepromMcuGetDeviceAddr( void )
 {
-    return LMN_STATUS_ERROR;
+    return 0;
 }

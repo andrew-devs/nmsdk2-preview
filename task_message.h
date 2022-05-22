@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2022, Northern Mechatronics, Inc.
+ * Copyright (c) 2020, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,14 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef EEPROM_EMULATION_CONF_H_
-#define EEPROM_EMULATION_CONF_H_
+#ifndef __TASK_MESSAGE_H__
+#define __TASK_MESSAGE_H__
 
-#include "eeprom_emulation.h"
+#include <stdint.h>
 
-#define LORAWAN_EEPROM_NUMBER_OF_PAGES    (2)
-#define LORAWAN_EEPROM_START_ADDRESS      (AM_HAL_FLASH_LARGEST_VALID_ADDR - LORAWAN_EEPROM_NUMBER_OF_PAGES * AM_HAL_FLASH_PAGE_SIZE)
+typedef struct {
+    uint32_t ui32Event;
+    void *psContent;
+} task_message_t;
 
-extern eeprom_handle_t lorawan_eeprom_handle;
-
-#endif /* EEPROM_EMULATION_CONF_H_ */
+#endif /* __TASK_MESSAGE_H__ */

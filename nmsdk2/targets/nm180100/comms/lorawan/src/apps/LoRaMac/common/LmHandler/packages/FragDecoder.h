@@ -23,10 +23,6 @@
 #ifndef __FRAG_DECODER_H__
 #define __FRAG_DECODER_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 
 /*!
@@ -40,14 +36,14 @@ extern "C" {
  *
  * \remark This parameter has an impact on the memory footprint.
  */
-#define FRAG_MAX_NB                                 21
+#define FRAG_MAX_NB                                 4096
 
 /*!
  * Maximum fragment size that can be handled.
  *
  * \remark This parameter has an impact on the memory footprint.
  */
-#define FRAG_MAX_SIZE                               50
+#define FRAG_MAX_SIZE                               242
 
 /*!
  * Maximum number of extra frames that can be handled.
@@ -91,6 +87,8 @@ typedef struct sFragDecoderCallbacks
      * \retval status Read operation status [0: Success, -1 Fail]
      */
     int8_t ( *FragDecoderRead )( uint32_t addr, uint8_t *data, uint32_t size );
+
+    int8_t ( *FragDecoderErase )( uint32_t addr, uint32_t size);
 }FragDecoderCallbacks_t;
 #endif
 
@@ -143,9 +141,5 @@ int32_t FragDecoderProcess( uint16_t fragCounter, uint8_t *rawData );
  * \retval status Fragmentation decoder status
  */
 FragDecoderStatus_t FragDecoderGetStatus( void );
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // __FRAG_DECODER_H__

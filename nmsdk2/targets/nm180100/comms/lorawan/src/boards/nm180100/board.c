@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2022, Northern Mechatronics, Inc.
+ * Copyright (c) 2020, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,11 +35,9 @@
 
 #include "board.h"
 #include "eeprom_emulation.h"
-#include "lorawan_eeprom_config.h"
+#include "eeprom_emulation_conf.h"
 #include "rtc-board.h"
-#include "sx126x-board.h"
-
-static eeprom_page_t lorawan_eeprom_pages[LORAWAN_EEPROM_NUMBER_OF_PAGES];
+#include <sx126x-board.h>
 
 void BoardCriticalSectionBegin(uint32_t *mask)
 {
@@ -54,23 +52,12 @@ void BoardCriticalSectionEnd(uint32_t *mask)
 void BoardInitPeriph(void)
 {
     RtcInit();
-
-    lorawan_eeprom_handle.pages = lorawan_eeprom_pages;
-    uint32_t ui32Status = eeprom_init(
-        LORAWAN_EEPROM_START_ADDRESS,
-        LORAWAN_EEPROM_NUMBER_OF_PAGES,
-        &lorawan_eeprom_handle);
-
-    if (ui32Status != EEPROM_STATUS_OK)
-    {
-        eeprom_format(&lorawan_eeprom_handle);
+    if (!eeprom_init(EEPROM_EMULATION_FLASH_PAGES)) {
+        eeprom_format(EEPROM_EMULATION_FLASH_PAGES);
     }
 }
 
-void BoardInitMcu(void)
-{
-    SX126xIoInit();
-}
+void BoardInitMcu(void) { SX126xIoInit(); }
 
 void BoardResetMcu(void)
 {

@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2021, Northern Mechatronics, Inc.
+ * Copyright (c) 2022, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -154,7 +154,7 @@ static void console_task_setup(void)
 {
     am_bsp_buffered_uart_printf_enable();
     NVIC_SetPriority((IRQn_Type)(UART0_IRQn + AM_BSP_UART_PRINT_INST),
-                    NVIC_configMAX_SYSCALL_INTERRUPT_PRIORITY);
+                    NVIC_configKERNEL_INTERRUPT_PRIORITY);
 
     memset(cmd_hist, 0, MAX_CMD_HIST_LEN * MAX_INPUT_LEN);
 

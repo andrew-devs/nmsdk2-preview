@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2022, Northern Mechatronics, Inc.
+ * Copyright (c) 2021, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,36 +36,18 @@
 extern "C" {
 #endif
 
-#define EEPROM_STATUS_OK          0
-#define EEPROM_STATUS_ERROR       1
+bool eeprom_init(uint32_t);
+bool eeprom_format(uint32_t);
+bool eeprom_read(uint16_t address, uint16_t *data);
+bool eeprom_read_array(uint16_t address, uint8_t *data, uint8_t *len);
+bool eeprom_read_array_len(uint16_t address, uint8_t *data, uint16_t size);
+void eeprom_write(uint16_t address, uint16_t data);
+void eeprom_write_array(uint16_t address, uint8_t *data, uint8_t len);
+void eeprom_write_array_len(uint16_t address, uint8_t *data, uint16_t size);
+bool eeprom_delete(uint16_t virtual_address);
+bool eeprom_delete_array(uint16_t virtual_address);
 
-typedef struct {
-    uint32_t *pui32StartAddress;
-    uint32_t *pui32EndAddress;
-} eeprom_page_t;
-
-typedef struct {
-    uint8_t allocated;
-    int16_t active_page;
-    int16_t receiving_page;
-    int16_t allocated_pages;
-    eeprom_page_t *pages;
-} eeprom_handle_t;
-
-uint32_t eeprom_init(uint32_t ui32StartAddress, uint32_t ui32NumberOfPages, eeprom_handle_t *pHandle);
-uint32_t eeprom_format(eeprom_handle_t *pHandle);
-
-uint32_t eeprom_read(eeprom_handle_t *pHandle, uint16_t address, uint16_t *data);
-uint32_t eeprom_read_array(eeprom_handle_t *pHandle, uint16_t address, uint8_t *data, uint8_t *len);
-uint32_t eeprom_read_array_len(eeprom_handle_t *pHandle, uint16_t address, uint8_t *data, uint16_t size);
-
-uint32_t eeprom_write(eeprom_handle_t *pHandle, uint16_t address, uint16_t data);
-uint32_t eeprom_write_array(eeprom_handle_t *pHandle, uint16_t address, uint8_t *data, uint8_t len);
-uint32_t eeprom_write_array_len(eeprom_handle_t *pHandle, uint16_t address, uint8_t *data, uint16_t size);
-uint32_t eeprom_delete(eeprom_handle_t *pHandle, uint16_t virtual_address);
-uint32_t eeprom_delete_array(eeprom_handle_t *pHandle, uint16_t virtual_address);
-
-uint32_t eeprom_erase_counter(eeprom_handle_t *pHandle);
+uint32_t eeprom_erase_counter(void);
 
 #ifdef __cplusplus
 }

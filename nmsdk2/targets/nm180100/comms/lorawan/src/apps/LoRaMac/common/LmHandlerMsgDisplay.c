@@ -24,8 +24,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include <am_mcu_apollo.h>
-#include <am_util.h>
+#include "am_mcu_apollo.h"
+#include "am_util.h"
 
 #include "utilities.h"
 #include "timer.h"
@@ -130,7 +130,6 @@ void DisplayNvmDataChange( LmHandlerNvmContextStates_t state, uint16_t size )
 
 void DisplayNetworkParametersUpdate( CommissioningParams_t *commissioningParams )
 {
-    am_util_stdio_printf( "\n\r");
     am_util_stdio_printf( "DevEui      : %02X", commissioningParams->DevEui[0] );
     for( int i = 1; i < 8; i++ )
     {
@@ -244,7 +243,7 @@ void DisplayJoinRequestUpdate( LmHandlerJoinParams_t *params )
     {
         if( params->Status == LORAMAC_HANDLER_SUCCESS )
         {
-            am_util_stdio_printf( "\n\r###### ===========   JOINED     ============ ######\n\r" );
+            am_util_stdio_printf( "###### ===========   JOINED     ============ ######\n\r" );
             am_util_stdio_printf( "\n\rOTAA\n\r\n\r" );
             am_util_stdio_printf( "DevAddr     :  %08lX\n\r", params->CommissioningParams->DevAddr );
             am_util_stdio_printf( "\n\r\n\r" );
@@ -254,7 +253,7 @@ void DisplayJoinRequestUpdate( LmHandlerJoinParams_t *params )
 #if ( OVER_THE_AIR_ACTIVATION == 0 )
     else
     {
-        am_util_stdio_printf( "\n\r###### ===========   JOINED     ============ ######\n\r" );
+        am_util_stdio_printf( "###### ===========   JOINED     ============ ######\n\r" );
         am_util_stdio_printf( "\n\rABP\n\r\n\r" );
         am_util_stdio_printf( "DevAddr     : %08lX\n\r", params->CommissioningParams->DevAddr );
         am_util_stdio_printf( "\n\r\n\r" );
@@ -425,11 +424,9 @@ void DisplayClassUpdate( DeviceClass_t deviceClass )
 
 void DisplayAppInfo( const char* appName, const Version_t* appVersion, const Version_t* gitHubVersion )
 {
-/*
     am_util_stdio_printf( "\n\r###### ===================================== ######\n\r\n\r" );
     am_util_stdio_printf( "Application name   : %s\n\r", appName );
     am_util_stdio_printf( "Application version: %d.%d.%d\n\r", appVersion->Fields.Major, appVersion->Fields.Minor, appVersion->Fields.Patch );
     am_util_stdio_printf( "GitHub base version: %d.%d.%d\n\r", gitHubVersion->Fields.Major, gitHubVersion->Fields.Minor, gitHubVersion->Fields.Patch );
     am_util_stdio_printf( "\n\r###### ===================================== ######\n\r\n\r" );
-*/
 }
