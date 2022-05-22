@@ -23,20 +23,20 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <am_mcu_apollo.h>
+#include <am_util.h>
 #include "utilities.h"
 #include "FragDecoder.h"
 
 #define DBG_TRACE                                   0
 
 #if DBG_TRACE == 1
-    #include <stdio.h>
     /*!
      * Works in the same way as the printf function does.
      */
     #define DBG( ... )                               \
         do                                           \
         {                                            \
-            printf( __VA_ARGS__ );                   \
+            am_util_stdio_printf( __VA_ARGS__ );                   \
         }while( 0 )
 #else
     #define DBG( fmt, ... )

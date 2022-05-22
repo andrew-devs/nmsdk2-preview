@@ -19,20 +19,21 @@
  *
  * \author    Miguel Luis ( Semtech )
  */
+#include "am_util.h"
+
 #include "LmHandler.h"
 #include "LmhpRemoteMcastSetup.h"
 
 #define DBG_TRACE                                   1
 
 #if DBG_TRACE == 1
-    #include <stdio.h>
     /*!
      * Works in the same way as the printf function does.
      */
     #define DBG( ... )                               \
         do                                           \
         {                                            \
-            printf( __VA_ARGS__ );                   \
+            am_util_stdio_printf( __VA_ARGS__ );                   \
         }while( 0 )
 #else
     #define DBG( ... )
@@ -384,7 +385,7 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
                         TimerSetValue( &SessionStartTimer, timeToSessionStart * 1000 );
                         TimerStart( &SessionStartTimer );
 
-                        DBG( "Time2SessionStart: %ld ms\n", timeToSessionStart * 1000 );
+                        DBG( "Time2SessionStart: %ld ms\n\r", timeToSessionStart * 1000 );
 
                         LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = status;
                         LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = ( timeToSessionStart >> 0  ) & 0xFF;
@@ -438,7 +439,7 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
                         TimerSetValue( &SessionStartTimer, timeToSessionStart * 1000 );
                         TimerStart( &SessionStartTimer );
 
-                        DBG( "Time2SessionStart: %ld ms\n", timeToSessionStart * 1000 );
+                        DBG( "\n\rTime2SessionStart: %ld ms\n\r", timeToSessionStart * 1000 );
 
                         LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = status;
                         LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = ( timeToSessionStart >> 0  ) & 0xFF;
@@ -473,28 +474,28 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
         };
         LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
 
-        DBG( "ID          : %d\n", McSessionData[0].McGroupData.IdHeader.Fields.McGroupId );
-        DBG( "McAddr      : %08lX\n", McSessionData[0].McGroupData.McAddr );
+        DBG( "ID          : %d\n\r", McSessionData[0].McGroupData.IdHeader.Fields.McGroupId );
+        DBG( "McAddr      : %08lX\n\r", McSessionData[0].McGroupData.McAddr );
         DBG( "McKey       : %02X", McSessionData[0].McGroupData.McKeyEncrypted[0] );
         for( int i = 1; i < 16; i++ )
         {
             DBG( "-%02X",  McSessionData[0].McGroupData.McKeyEncrypted[i] );
         }
-        DBG( "\n" );
-        DBG( "McFCountMin : %lu\n",  McSessionData[0].McGroupData.McFCountMin );
-        DBG( "McFCountMax : %lu\n",  McSessionData[0].McGroupData.McFCountMax );
-        DBG( "SessionTime : %lu\n",  McSessionData[0].SessionTime );
-        DBG( "SessionTimeT: %d\n",  McSessionData[0].SessionTimeout );
+        DBG( "\n\r" );
+        DBG( "McFCountMin : %lu\n\r",  McSessionData[0].McGroupData.McFCountMin );
+        DBG( "McFCountMax : %lu\n\r",  McSessionData[0].McGroupData.McFCountMax );
+        DBG( "SessionTime : %lu\n\r",  McSessionData[0].SessionTime );
+        DBG( "SessionTimeT: %d\n\r",  McSessionData[0].SessionTimeout );
         if( McSessionData[0].RxParams.Class == CLASS_B )
         {
-            DBG( "Rx Freq     : %lu\n", McSessionData[0].RxParams.Params.ClassB.Frequency );
-            DBG( "Rx DR       : DR_%d\n", McSessionData[0].RxParams.Params.ClassB.Datarate );
-            DBG( "Periodicity : %u\n", McSessionData[0].RxParams.Params.ClassB.Periodicity );
+            DBG( "Rx Freq     : %lu\n\r", McSessionData[0].RxParams.Params.ClassB.Frequency );
+            DBG( "Rx DR       : DR_%d\n\r", McSessionData[0].RxParams.Params.ClassB.Datarate );
+            DBG( "Periodicity : %u\n\r", McSessionData[0].RxParams.Params.ClassB.Periodicity );
         }
         else
         {
-            DBG( "Rx Freq     : %lu\n", McSessionData[0].RxParams.Params.ClassC.Frequency );
-            DBG( "Rx DR       : DR_%d\n", McSessionData[0].RxParams.Params.ClassC.Datarate );
+            DBG( "Rx Freq     : %lu\n\r", McSessionData[0].RxParams.Params.ClassC.Frequency );
+            DBG( "Rx DR       : DR_%d\n\r", McSessionData[0].RxParams.Params.ClassC.Datarate );
         }
     }
 }
