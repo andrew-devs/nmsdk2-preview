@@ -225,6 +225,8 @@ static void OnMacMcpsRequest(LoRaMacStatus_t status, McpsReq_t *mcpsReq,
 {
     am_util_stdio_printf("\r\n");
     DisplayMacMcpsRequestUpdate(status, mcpsReq, nextTxDelay);
+    am_util_stdio_printf("FPORT       : %d\r\n", mcpsReq->Req.Unconfirmed.fPort);
+    am_util_stdio_printf("BUFFERSIZE  : %d\r\n\r\n", mcpsReq->Req.Unconfirmed.fBufferSize);
     console_print_prompt();
 }
 

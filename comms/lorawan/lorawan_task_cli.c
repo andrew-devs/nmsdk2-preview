@@ -306,6 +306,8 @@ void prvApplicationSyncSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
         TaskMessage.ui32Event = SYNC_MAC;
         xQueueSend(lorawan_task_queue, &TaskMessage, portMAX_DELAY);
     }
+
+    lorawan_task_wake();
 }
 
 void prvApplicationDatetimeSubCommand(char *pcWriteBuffer,
@@ -386,6 +388,8 @@ void prvApplicationClassSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
             LmHandlerRequestClass(CLASS_C);
             am_util_stdio_printf("Class C requested\r\n");
         }
+
+        lorawan_task_wake();
     }
 }
 
