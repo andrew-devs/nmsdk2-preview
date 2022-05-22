@@ -381,6 +381,11 @@ void LmHandlerProcess( void )
     // If a MAC layer scheduled uplink is still pending try to send it.
     if( IsUplinkTxPending == true )
     {
+        if (LoRaMacIsBusy())
+        {
+            return;
+        }
+
         // Send an empty message
         LmHandlerAppData_t appData =
         {

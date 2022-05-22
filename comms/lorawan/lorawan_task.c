@@ -184,32 +184,27 @@ static void OnBeaconStatusChange(LoRaMacHandlerBeaconParams_t *params)
 
 static void OnMacProcess(void)
 {
-    /*
-    // this is called inside an IRQ
-    MacProcessing = true;
-    timeout = 0;
-#if defined(AM_BSP_GPIO_LED4)
-    am_hal_gpio_state_write(AM_BSP_GPIO_LED4, AM_HAL_GPIO_OUTPUT_SET);
-#endif // defined(AM_BSP_GPIO_LED4)
-*/
-    lorawan_task_wake();
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xTaskNotifyFromISR(lorawan_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+
 }
 
 static void OnJoinRequest(LmHandlerJoinParams_t *params)
 {
-    am_util_stdio_printf("\r\n");
-    DisplayJoinRequestUpdate(params);
-
     if (params->Status == LORAMAC_HANDLER_ERROR)
     {
         LmHandlerJoin();
     }
     else
     {
+        am_util_stdio_printf("\r\n");
+        DisplayJoinRequestUpdate(params);
+
         LmHandlerRequestClass(LORAWAN_DEFAULT_CLASS);
+        console_print_prompt();
     }
 
-    console_print_prompt();
 }
 
 static void OnMacMlmeRequest(LoRaMacStatus_t status, MlmeReq_t *mlmeReq,

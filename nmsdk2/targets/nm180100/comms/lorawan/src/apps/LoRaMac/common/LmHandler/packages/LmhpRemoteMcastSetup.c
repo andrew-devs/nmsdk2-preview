@@ -439,7 +439,7 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
                         TimerSetValue( &SessionStartTimer, timeToSessionStart * 1000 );
                         TimerStart( &SessionStartTimer );
 
-                        DBG( "\n\rTime2SessionStart: %ld ms\n\r", timeToSessionStart * 1000 );
+                        DBG( "\n\r\n\rSession Start: %ld s\n\r", timeToSessionStart );
 
                         LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = status;
                         LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = ( timeToSessionStart >> 0  ) & 0xFF;
@@ -472,7 +472,7 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
             .BufferSize = dataBufferIndex,
             .Port = REMOTE_MCAST_SETUP_PORT
         };
-        LmHandlerErrorStatus_t status = LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
+        LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
 
         DBG( "\n\r" );
         DBG( "ID          : %d\n\r", McSessionData[0].McGroupData.IdHeader.Fields.McGroupId );
