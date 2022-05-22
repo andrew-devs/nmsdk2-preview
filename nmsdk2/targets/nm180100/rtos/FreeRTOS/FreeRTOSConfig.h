@@ -144,6 +144,10 @@ extern void am_freertos_wakeup(uint32_t);
 #define configPOST_SLEEP_PROCESSING(time)    am_freertos_wakeup(time)
 #endif
 /*-----------------------------------------------------------*/
+
+//#define AM_FREERTOS_USE_STIMER_FOR_TICK 1
+//#define AM_FREERTOS_STIMER_BACKUP 1
+
 #ifdef AM_FREERTOS_USE_STIMER_FOR_TICK
 #define configSTIMER_CLOCK_HZ                     32768
 #define configSTIMER_CLOCK                        AM_HAL_STIMER_XTAL_32KHZ
