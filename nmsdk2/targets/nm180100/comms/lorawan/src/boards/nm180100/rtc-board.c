@@ -88,10 +88,12 @@ void RtcInit(void)
         am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREC);
         NVIC_EnableIRQ(STIMER_CMPR2_IRQn);
 
-        am_hal_stimer_config(AM_HAL_STIMER_CFG_CLEAR |
-                             AM_HAL_STIMER_CFG_FREEZE);
-        am_hal_stimer_config(CLOCK_SOURCE |
-                AM_HAL_STIMER_CFG_COMPARE_C_ENABLE);
+        uint32_t oldCfg = am_hal_stimer_config(AM_HAL_STIMER_CFG_FREEZE);
+
+        am_hal_stimer_config(
+            (oldCfg & ~(AM_HAL_STIMER_CFG_FREEZE | CTIMER_STCFG_CLKSEL_Msk))
+            | CLOCK_SOURCE
+            | AM_HAL_STIMER_CFG_COMPARE_C_ENABLE);
 
         RtcSetTimerContext();
 
