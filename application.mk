@@ -58,6 +58,7 @@ OUTPUT_OTA  := nmapp-ota
 #   LIBS     += -ladditional_library
 #******************************************************************************
 INCLUDES += -I.
+INCLUDES += -I./config
 
 VPATH += .
 
