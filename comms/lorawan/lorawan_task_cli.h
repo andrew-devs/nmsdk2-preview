@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2020, Northern Mechatronics, Inc.
+ * Copyright (c) 2022, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,6 @@
 #include <FreeRTOS.h>
 #include <FreeRTOS_CLI.h>
 
-extern CLI_Command_Definition_t LoRaWANCommandDefinition;
+extern CLI_Command_Definition_t lorawan_command_definition;
 
 #endif

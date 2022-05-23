@@ -44,7 +44,6 @@
 #include "application_task.h"
 #include "lorawan_task.h"
 #include "console_task.h"
-#include "task_message.h"
 
 //*****************************************************************************
 //

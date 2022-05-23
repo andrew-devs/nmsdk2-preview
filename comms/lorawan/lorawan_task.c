@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2021, Northern Mechatronics, Inc.
+ * Copyright (c) 2022, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,40 +58,28 @@
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
 #include "console_task.h"
-#include "task_message.h"
 #include "ota_config.h"
 
 #define LORAWAN_DEFAULT_CLASS CLASS_A
 
-#define FRAGMENTATION_DATA_FRAGMENT 0x08
+typedef struct 
+{
+    LmHandlerMsgTypes_t tType;
+    uint32_t    ui32Port;
+    uint32_t    ui32Length;
+    uint8_t    *ui8Data;
+} lorawan_packet_t;
 
-TaskHandle_t lorawan_task_handle;
-QueueHandle_t lorawan_task_queue;
+static TaskHandle_t lorawan_task_handle;
+static QueueHandle_t lorawan_task_command_queue;
+static QueueHandle_t lorawan_task_transmit_queue;
 
-uint8_t psLmDataBuffer[LM_BUFFER_SIZE];
-LmHandlerAppData_t LmAppData;
-LmHandlerMsgTypes_t LmMsgType;
+#define LM_BUFFER_SIZE 242
+static uint8_t psLmDataBuffer[LM_BUFFER_SIZE];
 
-static uint8_t FragDataBlockAuthReqBuffer[5];
 
-static LmHandlerParams_t parameters;
-static LmHandlerCallbacks_t LmCallbacks;
-static LmhpFragmentationParams_t lmh_fragmentation_parameters;
-static LmhpComplianceParams_t LmComplianceParams;
-
-static volatile bool TransmitPending = false;
-static volatile bool MacProcessing = false;
 static volatile bool ClockSynchronized = false;
 static volatile bool McSessionStarted = false;
-static volatile bool TransferCompleted = false;
-
-static uint32_t timeout = portMAX_DELAY;
-
-static uint8_t FragmentSize;
-static uint8_t FragmentNumber;
-static uint8_t FragmentReceived;
-static uint8_t PrepareFlashStorage;
-static LmHandlerAppData_t fragComplete;
 
 /*
  * Board ID is called by the LoRaWAN stack to
@@ -115,23 +103,6 @@ void BoardGetUniqueId(uint8_t *id)
     id[7] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 24);
 }
 
-static void TclProcessCommand(LmHandlerAppData_t *appData)
-{
-    // Only handle the reset command as that is indicative of the
-    // beginning of compliance testing.  All the other compliance test
-    // commands are handle by the Compliance state machine
-    switch (appData->Buffer[0])
-    {
-    case 0x01:
-        am_util_stdio_printf("Tcl: LoRaWAN MAC layer reset requested\r\n");
-        break;
-    case 0x05:
-        am_util_stdio_printf("Tcl: Duty cycle set to %d\r\n",
-                             appData->Buffer[1]);
-        break;
-    }
-}
-
 /*
  * LoRaMAC Application Layer Callbacks
  */
@@ -140,54 +111,36 @@ static void OnClassChange(DeviceClass_t deviceClass)
     DisplayClassUpdate(deviceClass);
     switch (deviceClass)
     {
-    default:
     case CLASS_A:
     {
         McSessionStarted = false;
     }
-    break;
+        break;
     case CLASS_B:
     {
-        LmHandlerAppData_t appData = {
-            .Buffer = NULL,
-            .BufferSize = 0,
-            .Port = 0,
-        };
-        LmHandlerSend(&appData, LORAMAC_HANDLER_UNCONFIRMED_MSG);
         McSessionStarted = true;
     }
-    break;
+        break;
     case CLASS_C:
     {
         McSessionStarted = true;
     }
-    break;
+        break;
+    default:
+        break;
     }
 }
 
 static void OnBeaconStatusChange(LoRaMacHandlerBeaconParams_t *params)
 {
     DisplayBeaconUpdate(params);
-
-    switch (params->State)
-    {
-    case LORAMAC_HANDLER_BEACON_RX:
-        break;
-    case LORAMAC_HANDLER_BEACON_LOST:
-        break;
-    case LORAMAC_HANDLER_BEACON_NRX:
-        break;
-    default:
-        break;
-    }
 }
 
 static void OnMacProcess(void)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xTaskNotifyFromISR(lorawan_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
+    lorawan_task_wake_from_isr(&xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-
 }
 
 static void OnJoinRequest(LmHandlerJoinParams_t *params)
@@ -246,48 +199,11 @@ static void OnRxData(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
 
     switch (appData->Port)
     {
-    case 0:
-        am_util_stdio_printf("MAC command received\r\n");
-        am_util_stdio_printf("Size: %d\r\n", appData->BufferSize);
-        break;
-
-    case 3:
-        if (appData->BufferSize == 1)
-        {
-            switch (appData->Buffer[0])
-            {
-            case 0:
-                LmHandlerRequestClass(CLASS_A);
-                break;
-            case 1:
-                LmHandlerRequestClass(CLASS_B);
-                break;
-            case 2:
-                LmHandlerRequestClass(CLASS_C);
-                break;
-            default:
-                break;
-            }
-        }
-        break;
-
     case LM_APPLICATION_PORT:
         // process application specific data here
         break;
 
-    case LM_MULTICAST_PORT:
-        break;
-
-    case LM_FUOTA_PORT:
-
-        break;
-
-    case LM_CLOCKSYNC_PORT:
-        // override application layer time sync here if needed
-        break;
-
-    case LM_COMPLIANCE_PORT:
-        TclProcessCommand(appData);
+   default:
         break;
     }
 
@@ -330,14 +246,15 @@ static void OnFragDone(int32_t status, uint32_t size)
 {
     uint32_t rx_crc = Crc32((uint8_t *)OTA_FLASH_ADDRESS, size);
 
+    uint8_t FragDataBlockAuthReqBuffer[5];
+
     FragDataBlockAuthReqBuffer[0] = 0x05;
     FragDataBlockAuthReqBuffer[1] = rx_crc & 0x000000FF;
     FragDataBlockAuthReqBuffer[2] = (rx_crc >> 8) & 0x000000FF;
     FragDataBlockAuthReqBuffer[3] = (rx_crc >> 16) & 0x000000FF;
     FragDataBlockAuthReqBuffer[4] = (rx_crc >> 24) & 0x000000FF;
 
-    TransferCompleted = true;
-    TransmitPending = true;
+    lorawan_transmit(201, LORAMAC_HANDLER_UNCONFIRMED_MSG, 5, FragDataBlockAuthReqBuffer);
 
     am_util_stdio_printf("\r\n");
     am_util_stdio_printf(
@@ -407,70 +324,71 @@ static int8_t FragDecoderErase(uint32_t offset, uint32_t size)
     return 0;
 }
 
-void application_handle_uplink()
+static void lorawan_task_handle_uplink()
 {
-    if (TransmitPending)
+    if (McSessionStarted)
+    {
+        return;
+    }
+
+    lorawan_packet_t packet;
+    if (xQueuePeek(lorawan_task_transmit_queue, &packet, 0) == pdPASS)
     {
         if (LmHandlerIsBusy() == true)
         {
             return;
         }
 
-        if (McSessionStarted == false)
+        xQueueReceive(lorawan_task_transmit_queue, &packet, 0);
+
+        LmHandlerAppData_t app_data;
+
+        if (packet.ui32Length > 0)
         {
-            if (TransferCompleted)
-            {
-                TransferCompleted = false;
-                TransmitPending = false;
-
-                fragComplete.Buffer = FragDataBlockAuthReqBuffer;
-                fragComplete.BufferSize = 5;
-                fragComplete.Port = LM_FUOTA_PORT;
-
-                LmHandlerSend(&fragComplete, LORAMAC_HANDLER_UNCONFIRMED_MSG);
-            }
-            else
-            {
-                TransmitPending = false;
-                LmHandlerSend(&LmAppData, LmMsgType);
-            }
+            memcpy(psLmDataBuffer, packet.ui8Data, packet.ui32Length);
+            vPortFree(app_data.Buffer);
         }
+        app_data.Port = packet.ui32Port;
+        app_data.BufferSize = packet.ui32Length;
+        app_data.Buffer = psLmDataBuffer;
+
+        LmHandlerSend(&app_data, packet.tType);
     }
 }
 
-void application_handle_command()
+static void lorawan_task_handle_command()
 {
-    task_message_t TaskMessage;
+    lorawan_command_t command;
 
     // do not block on message receive as the LoRa MAC state machine decides
     // when it is appropriate to sleep.  We also do not explicitly go to
     // sleep directly and simply do a task yield.  This allows other timing
     // critical radios such as BLE to run their state machines.
-    if (xQueueReceive(lorawan_task_queue, &TaskMessage, 0) == pdPASS)
+    if (xQueueReceive(lorawan_task_command_queue, &command, 0) == pdPASS)
     {
-        switch (TaskMessage.ui32Event)
+        switch (command.eCommand)
         {
-        case JOIN:
+        case LORAWAN_JOIN:
             LmHandlerJoin();
             break;
-        case SEND:
-            TransmitPending = true;
-            break;
-        case SYNC_APP:
+        case LORAWAN_SYNC_APP:
             LmhpClockSyncAppTimeReq();
             break;
-        case SYNC_MAC:
+        case LORAWAN_SYNC_MAC:
             LmHandlerDeviceTimeReq();
             break;
-        case WAKE:
+        default:
             break;
         }
     }
 }
 
-void application_setup()
+static void lorawan_task_setup()
 {
-    LmMsgType = LORAMAC_HANDLER_UNCONFIRMED_MSG;
+    LmHandlerParams_t parameters;
+    LmHandlerCallbacks_t LmCallbacks;
+    LmhpFragmentationParams_t lmh_fragmentation_parameters;
+    LmhpComplianceParams_t LmComplianceParams;
 
     BoardInitMcu();
     BoardInitPeriph();
@@ -526,127 +444,95 @@ void application_setup()
     LmHandlerPackageRegister(PACKAGE_ID_CLOCK_SYNC, NULL);
     LmHandlerPackageRegister(PACKAGE_ID_REMOTE_MCAST_SETUP, NULL);
     LmHandlerPackageRegister(PACKAGE_ID_FRAGMENTATION, &lmh_fragmentation_parameters);
-
-    FragmentSize = 0;
-    FragmentNumber = 0;
-    FragmentReceived = 0;
-    PrepareFlashStorage = 0;
-}
-
-static char *otaStatusMessage[] = {"Success", "Error", "Failure", "Pending"};
-
-static void dump_ota_status(void)
-{
-    uint32_t *pOtaDesc =
-        (uint32_t *)(OTA_POINTER_LOCATION & ~(AM_HAL_FLASH_PAGE_SIZE - 1));
-    uint32_t i;
-
-    // Check if the current content at OTA descriptor is valid
-    for (i = 0; i < AM_HAL_SECURE_OTA_MAX_OTA + 1; i++)
-    {
-        // Make sure the image address looks okay
-        if (pOtaDesc[i] == 0xFFFFFFFF)
-        {
-            break;
-        }
-        if (((pOtaDesc[i] & 0x3) == AM_HAL_OTA_STATUS_ERROR) ||
-            ((pOtaDesc[i] & ~0x3) >= 0x100000))
-        {
-            break;
-        }
-    }
-    if (pOtaDesc[i] == 0xFFFFFFFF)
-    {
-        am_util_stdio_printf("\r\nValid Previous OTA state\r\n");
-        // It seems in last boot this was used as OTA descriptor
-        // Dump previous OTA information
-        am_hal_ota_status_t otaStatus[AM_HAL_SECURE_OTA_MAX_OTA];
-        am_hal_get_ota_status(pOtaDesc, AM_HAL_SECURE_OTA_MAX_OTA, otaStatus);
-        for (uint32_t i = 0; i < AM_HAL_SECURE_OTA_MAX_OTA; i++)
-        {
-            if ((uint32_t)otaStatus[i].pImage == 0xFFFFFFFF)
-            {
-                break;
-            }
-            {
-                am_util_stdio_printf(
-                    "\r\nPrevious OTA: Blob Addr: 0x%x - Result %s\r\n",
-                    otaStatus[i].pImage, otaStatusMessage[otaStatus[i].status]);
-            }
-        }
-    }
-    else
-    {
-        am_util_stdio_printf("\r\nNo Previous OTA state\r\n");
-    }
 }
 
 void lorawan_wake_on_radio_irq()
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xTaskNotifyFromISR(lorawan_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
+    lorawan_task_wake_from_isr(&xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 void lorawan_wake_on_timer_irq()
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xTaskNotifyFromISR(lorawan_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
+    lorawan_task_wake_from_isr(&xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-void lorawan_task(void *pvParameters)
+static void lorawan_task(void *pvParameters)
 {
-    FreeRTOS_CLIRegisterCommand(&LoRaWANCommandDefinition);
-    lorawan_task_queue = xQueueCreate(10, sizeof(task_message_t));
+    FreeRTOS_CLIRegisterCommand(&lorawan_command_definition);
 
     am_util_stdio_printf("\r\n\r\nLoRaWAN Application Demo Original\r\n\r\n");
-    console_print_prompt();
 
-    dump_ota_status();
+    lorawan_task_setup();
 
-    application_setup();
+    am_hal_gpio_pinconfig(AM_BSP_GPIO_LED4, g_AM_HAL_GPIO_OUTPUT);
 
-    am_hal_gpio_pinconfig(17, g_AM_HAL_GPIO_OUTPUT);
-    am_hal_gpio_state_write(17, AM_HAL_GPIO_OUTPUT_SET);
-
-    TransmitPending = false;
-    timeout = portMAX_DELAY;
     while (1)
     {
-        application_handle_command();
+        am_hal_gpio_state_write(AM_BSP_GPIO_LED4, AM_HAL_GPIO_OUTPUT_SET);
+        lorawan_task_handle_command();
         LmHandlerProcess();
-        application_handle_uplink();
+        lorawan_task_handle_uplink();
 
+        am_hal_gpio_state_write(AM_BSP_GPIO_LED4, AM_HAL_GPIO_OUTPUT_CLEAR);
         xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
-        am_hal_gpio_state_write(AM_BSP_GPIO_LED4, AM_HAL_GPIO_OUTPUT_TOGGLE);
-/*
-        if (MacProcessing)
-        {
-            taskENTER_CRITICAL();
-            MacProcessing = false;
-            timeout = portMAX_DELAY;
-            taskEXIT_CRITICAL();
-        }
-        else
-        {
-#if defined(AM_BSP_GPIO_LED4)
-#endif // defined(AM_BSP_GPIO_LED4)
-        }
-*/
     }
 }
 
-void lorawan_task_create(uint32_t priority)
+void lorawan_task_create(uint32_t ui32Priority)
 {
     xTaskCreate(
         lorawan_task,
         "lorawan",
-        512, 0, priority,
+        512, 0, ui32Priority,
         &lorawan_task_handle);
+
+    lorawan_task_command_queue = xQueueCreate(8, sizeof(lorawan_command_t));
+    lorawan_task_transmit_queue = xQueueCreate(8, sizeof(lorawan_packet_t));
 }
 
 void lorawan_task_wake()
 {
     xTaskNotify(lorawan_task_handle, 0, eNoAction);
+}
+
+void lorawan_task_wake_from_isr(BaseType_t *higher_priority_task_woken)
+{
+    xTaskNotifyFromISR(lorawan_task_handle, 0, eNoAction, higher_priority_task_woken);
+}
+
+void lorawan_send_command(lorawan_command_t *pCommand)
+{
+    xQueueSend(lorawan_task_command_queue, pCommand, 0);
+    lorawan_task_wake();
+}
+
+void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *ui8Data)
+{
+    lorawan_packet_t packet;
+
+    packet.tType      = ui32Ack ? LORAMAC_HANDLER_CONFIRMED_MSG : LORAMAC_HANDLER_UNCONFIRMED_MSG;
+    packet.ui32Port   = ui32Port;
+    packet.ui32Length = ui32Length;
+
+    if (ui32Length > 0)
+    {
+        // free at OnTxDone
+        uint8_t *payload = pvPortMalloc(ui32Length);
+        memcpy(payload, ui8Data, ui32Length);
+        packet.ui8Data = payload;
+    }
+    else
+    {
+        packet.ui8Data = NULL;
+    }
+
+    packet.ui8Data = ui8Data;
+
+    xQueueSend(lorawan_task_transmit_queue, &packet, 0);
+
+    lorawan_task_wake();
 }
