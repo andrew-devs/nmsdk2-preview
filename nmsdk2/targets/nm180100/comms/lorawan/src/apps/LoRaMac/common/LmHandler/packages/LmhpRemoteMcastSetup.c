@@ -240,11 +240,17 @@ static void LmhpRemoteMcastSetupProcess( void )
     switch( state )
     {
         case REMOTE_MCAST_SETUP_SESSION_STATE_START:
+        {
             // Switch to Class C
             LmHandlerRequestClass( CLASS_C );
 
-            TimerSetValue( &SessionStopTimer, ( 1 << McSessionData[0].SessionTimeout ) * 1000 );
+            uint32_t timeout = (1 << McSessionData[0].SessionTimeout);
+
+            TimerSetValue( &SessionStopTimer, ( timeout ) * 1000 );
             TimerStart( &SessionStopTimer );
+
+            DBG("Multicast timeout in %ds\n\r", timeout);
+        }
             break;
         case REMOTE_MCAST_SETUP_SESSION_STATE_STOP:
             // Switch back to Class A
@@ -385,7 +391,7 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
                         TimerSetValue( &SessionStartTimer, timeToSessionStart * 1000 );
                         TimerStart( &SessionStartTimer );
 
-                        DBG( "\n\r\n\rSession Start: %ld s\n\r", timeToSessionStart );
+                        DBG( "\n\rSession Starts in: %ld s\n\r", timeToSessionStart );
 
                         LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = status;
                         LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = ( timeToSessionStart >> 0  ) & 0xFF;
@@ -439,7 +445,7 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
                         TimerSetValue( &SessionStartTimer, timeToSessionStart * 1000 );
                         TimerStart( &SessionStartTimer );
 
-                        DBG( "\n\r\n\rSession Start: %ld s\n\r", timeToSessionStart );
+                        DBG( "\n\rSession Starts in: %ld s\n\r", timeToSessionStart );
 
                         LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = status;
                         LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = ( timeToSessionStart >> 0  ) & 0xFF;
@@ -474,8 +480,7 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
         };
         LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
 
-        DBG( "\n\r" );
-        DBG( "ID          : %d\n\r", McSessionData[0].McGroupData.IdHeader.Fields.McGroupId );
+        DBG( "\n\r\n\rID          : %d\n\r", McSessionData[0].McGroupData.IdHeader.Fields.McGroupId );
         DBG( "McAddr      : %08lX\n\r", McSessionData[0].McGroupData.McAddr );
         DBG( "McKey       : %02X", McSessionData[0].McGroupData.McKeyEncrypted[0] );
         for( int i = 1; i < 16; i++ )

@@ -23,10 +23,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
-
-#include "am_mcu_apollo.h"
-#include "am_util.h"
-
 #include "utilities.h"
 #include "timer.h"
 

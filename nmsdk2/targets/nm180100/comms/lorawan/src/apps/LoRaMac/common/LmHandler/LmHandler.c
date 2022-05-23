@@ -383,6 +383,7 @@ void LmHandlerProcess( void )
     {
         if (LoRaMacIsBusy())
         {
+            LmHandlerCallbacks->OnMacProcess();
             return;
         }
 
