@@ -57,6 +57,7 @@
 
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
+#include "lmh_callbacks.h"
 #include "console_task.h"
 #include "ota_config.h"
 
@@ -76,7 +77,6 @@ static QueueHandle_t lorawan_task_transmit_queue;
 
 #define LM_BUFFER_SIZE 242
 static uint8_t psLmDataBuffer[LM_BUFFER_SIZE];
-
 
 static volatile bool ClockSynchronized = false;
 static volatile bool McSessionStarted = false;
@@ -101,129 +101,6 @@ void BoardGetUniqueId(uint8_t *id)
     id[5] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 8);
     id[6] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 16);
     id[7] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 24);
-}
-
-/*
- * LoRaMAC Application Layer Callbacks
- */
-static void OnClassChange(DeviceClass_t deviceClass)
-{
-    DisplayClassUpdate(deviceClass);
-    switch (deviceClass)
-    {
-    case CLASS_A:
-    {
-        McSessionStarted = false;
-    }
-        break;
-    case CLASS_B:
-    {
-        McSessionStarted = true;
-    }
-        break;
-    case CLASS_C:
-    {
-        McSessionStarted = true;
-    }
-        break;
-    default:
-        break;
-    }
-}
-
-static void OnBeaconStatusChange(LoRaMacHandlerBeaconParams_t *params)
-{
-    DisplayBeaconUpdate(params);
-}
-
-static void OnMacProcess(void)
-{
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    lorawan_task_wake_from_isr(&xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
-
-static void OnJoinRequest(LmHandlerJoinParams_t *params)
-{
-    if (params->Status == LORAMAC_HANDLER_ERROR)
-    {
-        LmHandlerJoin();
-    }
-    else
-    {
-        am_util_stdio_printf("\r\n");
-        DisplayJoinRequestUpdate(params);
-
-        LmHandlerRequestClass(LORAWAN_DEFAULT_CLASS);
-        console_print_prompt();
-    }
-
-}
-
-static void OnMacMlmeRequest(LoRaMacStatus_t status, MlmeReq_t *mlmeReq,
-                             TimerTime_t nextTxDelay)
-{
-    am_util_stdio_printf("\r\n");
-    DisplayMacMlmeRequestUpdate(status, mlmeReq, nextTxDelay);
-    console_print_prompt();
-}
-
-static void OnMacMcpsRequest(LoRaMacStatus_t status, McpsReq_t *mcpsReq,
-                             TimerTime_t nextTxDelay)
-{
-    am_util_stdio_printf("\r\n");
-    DisplayMacMcpsRequestUpdate(status, mcpsReq, nextTxDelay);
-    am_util_stdio_printf("FPORT       : %d\r\n", mcpsReq->Req.Unconfirmed.fPort);
-    am_util_stdio_printf("BUFFERSIZE  : %d\r\n\r\n", mcpsReq->Req.Unconfirmed.fBufferSize);
-    console_print_prompt();
-}
-
-static void OnNetworkParametersChange(CommissioningParams_t *params)
-{
-    am_util_stdio_printf("\r\n");
-    DisplayNetworkParametersUpdate(params);
-    console_print_prompt();
-}
-
-static void OnNvmDataChange(LmHandlerNvmContextStates_t state, uint16_t size)
-{
-    am_util_stdio_printf("\r\n");
-    DisplayNvmDataChange(state, size);
-    console_print_prompt();
-}
-
-static void OnRxData(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
-{
-    am_util_stdio_printf("\r\n");
-    DisplayRxUpdate(appData, params);
-
-    switch (appData->Port)
-    {
-    case LM_APPLICATION_PORT:
-        // process application specific data here
-        break;
-
-   default:
-        break;
-    }
-
-    console_print_prompt();
-}
-
-static void OnSysTimeUpdate(bool isSynchronized, int32_t timeCorrection)
-{
-    ClockSynchronized = isSynchronized;
-    am_util_stdio_printf("\r\n");
-    am_util_stdio_printf("Clock Synchronized: %d\r\n", ClockSynchronized);
-    am_util_stdio_printf("Correction: %d\r\n", timeCorrection);
-    am_util_stdio_printf("\r\n");
-}
-
-static void OnTxData(LmHandlerTxParams_t *params)
-{
-    am_util_stdio_printf("\r\n");
-    DisplayTxUpdate(params);
-    console_print_prompt();
 }
 
 static void OnFragProgress(uint16_t counter, uint16_t blocks, uint8_t size,
@@ -346,7 +223,6 @@ static void lorawan_task_handle_uplink()
         if (packet.ui32Length > 0)
         {
             memcpy(psLmDataBuffer, packet.ui8Data, packet.ui32Length);
-            vPortFree(app_data.Buffer);
         }
         app_data.Port = packet.ui32Port;
         app_data.BufferSize = packet.ui32Length;
@@ -386,7 +262,7 @@ static void lorawan_task_handle_command()
 static void lorawan_task_setup()
 {
     LmHandlerParams_t parameters;
-    LmHandlerCallbacks_t LmCallbacks;
+    LmHandlerCallbacks_t lmh_callbacks;
     LmhpFragmentationParams_t lmh_fragmentation_parameters;
     LmhpComplianceParams_t LmComplianceParams;
 
@@ -412,19 +288,8 @@ static void lorawan_task_setup()
         break;
     }
 
-    memset(&LmCallbacks, 0, sizeof(LmHandlerCallbacks_t));
-    // these are mandatory
-    LmCallbacks.OnMacProcess = OnMacProcess;
-    LmCallbacks.OnJoinRequest = OnJoinRequest;
-    LmCallbacks.OnNetworkParametersChange = OnNetworkParametersChange;
-    LmCallbacks.OnMacMlmeRequest = OnMacMlmeRequest;
-    LmCallbacks.OnMacMcpsRequest = OnMacMcpsRequest;
-    LmCallbacks.OnSysTimeUpdate = OnSysTimeUpdate;
-    LmCallbacks.OnTxData = OnTxData;
-    LmCallbacks.OnRxData = OnRxData;
-    LmCallbacks.OnClassChange = OnClassChange;
-    LmCallbacks.OnNvmDataChange = OnNvmDataChange;
-    LmCallbacks.OnBeaconStatusChange = OnBeaconStatusChange;
+    memset(&lmh_callbacks, 0, sizeof(LmHandlerCallbacks_t));
+    lmh_callbacks_setup(&lmh_callbacks);
 
     lmh_fragmentation_parameters.OnProgress = OnFragProgress;
     lmh_fragmentation_parameters.OnDone = OnFragDone;
@@ -432,7 +297,7 @@ static void lorawan_task_setup()
     lmh_fragmentation_parameters.DecoderCallbacks.FragDecoderRead = FragDecoderRead;
     lmh_fragmentation_parameters.DecoderCallbacks.FragDecoderErase = FragDecoderErase;
 
-    LmHandlerErrorStatus_t status = LmHandlerInit(&LmCallbacks, &parameters);
+    LmHandlerErrorStatus_t status = LmHandlerInit(&lmh_callbacks, &parameters);
     if (status != LORAMAC_HANDLER_SUCCESS)
     {
         am_util_stdio_printf("\r\n\r\nLoRaWAN application framework "
@@ -520,17 +385,17 @@ void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, 
 
     if (ui32Length > 0)
     {
-        // free at OnTxDone
+        packet.ui8Data = ui8Data;
+        /*
         uint8_t *payload = pvPortMalloc(ui32Length);
         memcpy(payload, ui8Data, ui32Length);
         packet.ui8Data = payload;
+        */
     }
     else
     {
         packet.ui8Data = NULL;
     }
-
-    packet.ui8Data = ui8Data;
 
     xQueueSend(lorawan_task_transmit_queue, &packet, 0);
 
