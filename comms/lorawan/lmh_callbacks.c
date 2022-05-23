@@ -38,6 +38,7 @@
 
 #include "lorawan_task.h"
 #include "lmh_callbacks.h"
+#include "console_task.h"
 
 static void lmh_on_mac_process(void)
 {

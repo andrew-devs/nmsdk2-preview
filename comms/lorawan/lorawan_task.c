@@ -45,22 +45,16 @@
 #include <queue.h>
 
 #include <LmHandler.h>
-#include <LmHandlerMsgDisplay.h>
 #include <LmhpClockSync.h>
 #include <LmhpCompliance.h>
 #include <LmhpFragmentation.h>
 #include <LmhpRemoteMcastSetup.h>
-#include <NvmDataMgmt.h>
 #include <board.h>
-#include <timer.h>
-#include <utilities.h>
 
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
 #include "lmh_callbacks.h"
 #include "lmhp_fragmentation.h"
-#include "console_task.h"
-#include "ota_config.h"
 
 typedef struct 
 {
