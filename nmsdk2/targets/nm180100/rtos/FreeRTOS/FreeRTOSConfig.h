@@ -145,7 +145,7 @@ extern void am_freertos_wakeup(uint32_t);
 #endif
 /*-----------------------------------------------------------*/
 
-//#define AM_FREERTOS_USE_STIMER_FOR_TICK 1
+#define AM_FREERTOS_USE_STIMER_FOR_TICK 1
 //#define AM_FREERTOS_STIMER_BACKUP 1
 
 #ifdef AM_FREERTOS_USE_STIMER_FOR_TICK
