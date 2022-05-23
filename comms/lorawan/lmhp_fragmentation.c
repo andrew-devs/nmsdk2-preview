@@ -45,9 +45,10 @@
 #include "lorawan_task.h"
 #include "lmhp_fragmentation.h"
 
-static uint8_t FragDataBlockAuthReqBuffer[5];
+#define AUTH_REQ_BUFFER_SIZE    (5)
+static uint8_t auth_req_buffer[AUTH_REQ_BUFFER_SIZE];
 
-static void OnFragProgress(uint16_t counter, uint16_t blocks, uint8_t size,
+static void on_frag_progress(uint16_t counter, uint16_t blocks, uint8_t size,
                            uint16_t lost)
 {
     am_util_stdio_printf(
@@ -63,17 +64,21 @@ static void OnFragProgress(uint16_t counter, uint16_t blocks, uint8_t size,
     am_util_stdio_printf("LOST        :       %7d Fragments\r\n\r\n", lost);
 }
 
-static void OnFragDone(int32_t status, uint32_t size)
+static void on_frag_done(int32_t status, uint32_t size)
 {
     uint32_t rx_crc = Crc32((uint8_t *)OTA_FLASH_ADDRESS, size);
 
-    FragDataBlockAuthReqBuffer[0] = 0x05;
-    FragDataBlockAuthReqBuffer[1] = rx_crc & 0x000000FF;
-    FragDataBlockAuthReqBuffer[2] = (rx_crc >> 8) & 0x000000FF;
-    FragDataBlockAuthReqBuffer[3] = (rx_crc >> 16) & 0x000000FF;
-    FragDataBlockAuthReqBuffer[4] = (rx_crc >> 24) & 0x000000FF;
+    auth_req_buffer[0] = 0x05;
+    auth_req_buffer[1] = rx_crc & 0x000000FF;
+    auth_req_buffer[2] = (rx_crc >> 8) & 0x000000FF;
+    auth_req_buffer[3] = (rx_crc >> 16) & 0x000000FF;
+    auth_req_buffer[4] = (rx_crc >> 24) & 0x000000FF;
 
-    lorawan_transmit(FRAGMENTATION_PORT, LORAMAC_HANDLER_UNCONFIRMED_MSG, 5, FragDataBlockAuthReqBuffer);
+    lorawan_transmit(
+        FRAGMENTATION_PORT,
+        LORAMAC_HANDLER_UNCONFIRMED_MSG,
+        AUTH_REQ_BUFFER_SIZE,
+        auth_req_buffer);
 
     am_util_stdio_printf("\r\n");
     am_util_stdio_printf(
@@ -87,7 +92,7 @@ static void OnFragDone(int32_t status, uint32_t size)
     am_util_stdio_printf("CRC    : %08lX\n\n", rx_crc);
 }
 
-static int8_t FragDecoderWrite(uint32_t offset, uint8_t *data, uint32_t size)
+static int8_t frag_decoder_write(uint32_t offset, uint8_t *data, uint32_t size)
 {
     uint32_t *destination = (uint32_t *)(OTA_FLASH_ADDRESS + offset);
     uint32_t source[64];
@@ -106,7 +111,7 @@ static int8_t FragDecoderWrite(uint32_t offset, uint8_t *data, uint32_t size)
     return 0;
 }
 
-static int8_t FragDecoderRead(uint32_t offset, uint8_t *data, uint32_t size)
+static int8_t frag_decoder_read(uint32_t offset, uint8_t *data, uint32_t size)
 {
     uint8_t *UnfragmentedData = (uint8_t *)(OTA_FLASH_ADDRESS);
     for (uint32_t i = 0; i < size; i++)
@@ -116,7 +121,7 @@ static int8_t FragDecoderRead(uint32_t offset, uint8_t *data, uint32_t size)
     return 0;
 }
 
-static int8_t FragDecoderErase(uint32_t offset, uint32_t size)
+static int8_t frag_decoder_erase(uint32_t offset, uint32_t size)
 {
     uint32_t totalPage = (size >> 13) + 1;
     uint32_t address = OTA_FLASH_ADDRESS;
@@ -145,9 +150,9 @@ static int8_t FragDecoderErase(uint32_t offset, uint32_t size)
 
 void lmhp_fragmentation_setup(LmhpFragmentationParams_t *parameters)
 {
-    parameters->OnProgress = OnFragProgress;
-    parameters->OnDone = OnFragDone;
-    parameters->DecoderCallbacks.FragDecoderWrite = FragDecoderWrite;
-    parameters->DecoderCallbacks.FragDecoderRead = FragDecoderRead;
-    parameters->DecoderCallbacks.FragDecoderErase = FragDecoderErase;
+    parameters->OnProgress = on_frag_progress;
+    parameters->OnDone = on_frag_done;
+    parameters->DecoderCallbacks.FragDecoderWrite = frag_decoder_write;
+    parameters->DecoderCallbacks.FragDecoderRead = frag_decoder_read;
+    parameters->DecoderCallbacks.FragDecoderErase = frag_decoder_erase;
 }
