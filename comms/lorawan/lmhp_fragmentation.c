@@ -38,6 +38,8 @@
 #include <FreeRTOS.h>
 #include <task.h>
 
+#include <LmhpFragmentation.h>
+
 #include "ota_config.h"
 
 #include "lorawan_task.h"
@@ -71,7 +73,7 @@ static void OnFragDone(int32_t status, uint32_t size)
     FragDataBlockAuthReqBuffer[3] = (rx_crc >> 16) & 0x000000FF;
     FragDataBlockAuthReqBuffer[4] = (rx_crc >> 24) & 0x000000FF;
 
-    lorawan_transmit(201, LORAMAC_HANDLER_UNCONFIRMED_MSG, 5, FragDataBlockAuthReqBuffer);
+    lorawan_transmit(FRAGMENTATION_PORT, LORAMAC_HANDLER_UNCONFIRMED_MSG, 5, FragDataBlockAuthReqBuffer);
 
     am_util_stdio_printf("\r\n");
     am_util_stdio_printf(

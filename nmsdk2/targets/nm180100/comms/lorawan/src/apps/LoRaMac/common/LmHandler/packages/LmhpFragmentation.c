@@ -26,8 +26,6 @@
 /*!
  * LoRaWAN Application Layer Fragmented Data Block Transport Specification
  */
-#define FRAGMENTATION_PORT                          201
-
 #define FRAGMENTATION_ID                            3
 #define FRAGMENTATION_VERSION                       1
 

@@ -25,8 +25,6 @@
 /*!
  * LoRaWAN Application Layer Clock Synchronization Specification
  */
-#define CLOCK_SYNC_PORT                             202
-
 #define CLOCK_SYNC_ID                               1
 #define CLOCK_SYNC_VERSION                          1
 

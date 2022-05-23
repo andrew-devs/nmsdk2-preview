@@ -32,8 +32,6 @@
  *
  * LoRaWAN Specification V1.x.x, chapter 4.3.2
  */
-#define COMPLIANCE_PORT 224
-
 #define COMPLIANCE_ID 6
 #define COMPLIANCE_VERSION 1
 

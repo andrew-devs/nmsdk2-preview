@@ -36,6 +36,7 @@ extern "C" {
  * \remark This value must be unique amongst the packages
  */
 #define PACKAGE_ID_CLOCK_SYNC                       1
+#define CLOCK_SYNC_PORT                             202
 
 /*!
  * Clock sync package parameters

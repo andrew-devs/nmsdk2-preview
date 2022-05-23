@@ -42,8 +42,6 @@
 /*!
  * LoRaWAN Application Layer Remote multicast setup Specification
  */
-#define REMOTE_MCAST_SETUP_PORT                     200
-
 #define REMOTE_MCAST_SETUP_ID                       2
 #define REMOTE_MCAST_SETUP_VERSION                  1
 
@@ -234,7 +232,6 @@ static void LmhpRemoteMcastSetupProcess( void )
 
     CRITICAL_SECTION_BEGIN( );
     state = LmhpRemoteMcastSetupState.SessionState;
-    LmhpRemoteMcastSetupState.SessionState = REMOTE_MCAST_SETUP_SESSION_STATE_IDLE;
     CRITICAL_SECTION_END( );
 
     switch( state )
@@ -255,6 +252,7 @@ static void LmhpRemoteMcastSetupProcess( void )
         case REMOTE_MCAST_SETUP_SESSION_STATE_STOP:
             // Switch back to Class A
             LmHandlerRequestClass( CLASS_A );
+            LmhpRemoteMcastSetupState.SessionState = REMOTE_MCAST_SETUP_SESSION_STATE_IDLE;
             break;
         case REMOTE_MCAST_SETUP_SESSION_STATE_IDLE:
         // Intentional fall through

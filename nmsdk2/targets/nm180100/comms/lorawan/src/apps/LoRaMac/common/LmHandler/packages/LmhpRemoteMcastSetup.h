@@ -36,6 +36,7 @@ extern "C" {
  * \remark This value must be unique amongst the packages
  */
 #define PACKAGE_ID_REMOTE_MCAST_SETUP               2
+#define REMOTE_MCAST_SETUP_PORT                     200
 
 /*!
  * Remote multicast setup package parameters

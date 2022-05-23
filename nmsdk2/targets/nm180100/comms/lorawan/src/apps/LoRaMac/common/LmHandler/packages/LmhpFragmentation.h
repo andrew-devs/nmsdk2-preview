@@ -37,6 +37,7 @@ extern "C" {
  * \remark This value must be unique amongst the packages
  */
 #define PACKAGE_ID_FRAGMENTATION                    3
+#define FRAGMENTATION_PORT                          201
 
 /*!
  * Fragmentation package parameters

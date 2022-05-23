@@ -35,6 +35,7 @@ extern "C" {
  * \remark This value must be unique amongst the packages
  */
 #define PACKAGE_ID_COMPLIANCE                       0
+#define COMPLIANCE_PORT 224
 
 /*!
  * Compliance test protocol handler parameters
