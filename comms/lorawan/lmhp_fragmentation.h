@@ -29,36 +29,11 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _LORAWAN_TASK_H_
-#define _LORAWAN_TASK_H_
+#ifndef _LMHP_FRAGMENTATION_H_
+#define _LMHP_FRAGMENTATION_H_
 
-#include <FreeRTOS.h>
-#include <LmHandler.h>
-#include <queue.h>
+#include <LmhpFragmentation.h>
 
-#define LM_APPLICATION_PORT 1
-#define LORAWAN_DEFAULT_CLASS CLASS_A
-
-typedef enum
-{
-    LORAWAN_JOIN = 0,
-    LORAWAN_RESET,
-    LORAWAN_SYNC_APP,
-    LORAWAN_SYNC_MAC
-} lorawan_command_e;
-
-typedef struct
-{
-    lorawan_command_e eCommand;
-    void *pvParameters;
-} lorawan_command_t;
-
-extern void lorawan_task_create(uint32_t ui32Priority);
-extern void lorawan_task_wake();
-extern void lorawan_task_wake_from_isr(BaseType_t *higher_priority_task_woken);
-
-extern void lorawan_send_command(lorawan_command_t *pCommand);
-
-extern void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *ui8Data);
+extern void lmhp_fragmentation_setup(LmhpFragmentationParams_t *parameters);
 
 #endif

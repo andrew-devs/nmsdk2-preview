@@ -58,10 +58,9 @@
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
 #include "lmh_callbacks.h"
+#include "lmhp_fragmentation.h"
 #include "console_task.h"
 #include "ota_config.h"
-
-#define LORAWAN_DEFAULT_CLASS CLASS_A
 
 typedef struct 
 {
@@ -78,7 +77,11 @@ static QueueHandle_t lorawan_task_transmit_queue;
 #define LM_BUFFER_SIZE 242
 static uint8_t psLmDataBuffer[LM_BUFFER_SIZE];
 
-static volatile bool ClockSynchronized = false;
+static LmHandlerParams_t         lmh_parameters;
+static LmHandlerCallbacks_t      lmh_callbacks;
+static LmhpFragmentationParams_t lmhp_fragmentation_parameters;
+static LmhpComplianceParams_t    LmComplianceParams;
+
 static volatile bool McSessionStarted = false;
 
 /*
@@ -101,104 +104,6 @@ void BoardGetUniqueId(uint8_t *id)
     id[5] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 8);
     id[6] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 16);
     id[7] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 24);
-}
-
-static void OnFragProgress(uint16_t counter, uint16_t blocks, uint8_t size,
-                           uint16_t lost)
-{
-    am_util_stdio_printf(
-        "\r\n###### =========== FRAG_DECODER ============ ######\r\n");
-    am_util_stdio_printf(
-        "######               PROGRESS                ######\r\n");
-    am_util_stdio_printf(
-        "###### ===================================== ######\r\n");
-    am_util_stdio_printf("RECEIVED    : %5d / %5d Fragments\r\n", counter,
-                         blocks);
-    am_util_stdio_printf("              %5d / %5d Bytes\r\n", counter * size,
-                         blocks * size);
-    am_util_stdio_printf("LOST        :       %7d Fragments\r\n\r\n", lost);
-}
-
-static void OnFragDone(int32_t status, uint32_t size)
-{
-    uint32_t rx_crc = Crc32((uint8_t *)OTA_FLASH_ADDRESS, size);
-
-    uint8_t FragDataBlockAuthReqBuffer[5];
-
-    FragDataBlockAuthReqBuffer[0] = 0x05;
-    FragDataBlockAuthReqBuffer[1] = rx_crc & 0x000000FF;
-    FragDataBlockAuthReqBuffer[2] = (rx_crc >> 8) & 0x000000FF;
-    FragDataBlockAuthReqBuffer[3] = (rx_crc >> 16) & 0x000000FF;
-    FragDataBlockAuthReqBuffer[4] = (rx_crc >> 24) & 0x000000FF;
-
-    lorawan_transmit(201, LORAMAC_HANDLER_UNCONFIRMED_MSG, 5, FragDataBlockAuthReqBuffer);
-
-    am_util_stdio_printf("\r\n");
-    am_util_stdio_printf(
-        "###### =========== FRAG_DECODER ============ ######\r\n");
-    am_util_stdio_printf(
-        "######               FINISHED                ######\r\n");
-    am_util_stdio_printf(
-        "###### ===================================== ######\r\n");
-    am_util_stdio_printf("STATUS : %ld\r\n", status);
-    am_util_stdio_printf("SIZE   : %ld\r\n", size);
-    am_util_stdio_printf("CRC    : %08lX\n\n", rx_crc);
-}
-
-static int8_t FragDecoderWrite(uint32_t offset, uint8_t *data, uint32_t size)
-{
-    uint32_t *destination = (uint32_t *)(OTA_FLASH_ADDRESS + offset);
-    uint32_t source[64];
-    uint32_t length = size >> 2;
-
-    am_util_stdio_printf("\r\nDecoder Write: 0x%x, 0x%x, %d\r\n",
-                         (uint32_t)destination, (uint32_t)source, length);
-    memcpy(source, data, size);
-
-    taskENTER_CRITICAL();
-
-    am_hal_flash_program_main(AM_HAL_FLASH_PROGRAM_KEY, source, destination,
-                              length);
-
-    taskEXIT_CRITICAL();
-    return 0;
-}
-
-static int8_t FragDecoderRead(uint32_t offset, uint8_t *data, uint32_t size)
-{
-    uint8_t *UnfragmentedData = (uint8_t *)(OTA_FLASH_ADDRESS);
-    for (uint32_t i = 0; i < size; i++)
-    {
-        data[i] = UnfragmentedData[offset + i];
-    }
-    return 0;
-}
-
-static int8_t FragDecoderErase(uint32_t offset, uint32_t size)
-{
-    uint32_t totalPage = (size >> 13) + 1;
-    uint32_t address = OTA_FLASH_ADDRESS;
-
-    am_util_stdio_printf("\r\nErasing %d pages at 0x%x\r\n", totalPage,
-                         address);
-
-    for (int i = 0; i < totalPage; i++)
-    {
-        address += AM_HAL_FLASH_PAGE_SIZE;
-        am_util_stdio_printf("Instance: %d, Page: %d\r\n",
-                             AM_HAL_FLASH_ADDR2INST(address),
-                             AM_HAL_FLASH_ADDR2PAGE(address));
-
-        taskENTER_CRITICAL();
-
-        am_hal_flash_page_erase(AM_HAL_FLASH_PROGRAM_KEY,
-                                AM_HAL_FLASH_ADDR2INST(address),
-                                AM_HAL_FLASH_ADDR2PAGE(address));
-
-        taskEXIT_CRITICAL();
-    }
-
-    return 0;
 }
 
 static void lorawan_task_handle_uplink()
@@ -261,54 +166,41 @@ static void lorawan_task_handle_command()
 
 static void lorawan_task_setup()
 {
-    LmHandlerParams_t parameters;
-    LmHandlerCallbacks_t lmh_callbacks;
-    LmhpFragmentationParams_t lmh_fragmentation_parameters;
-    LmhpComplianceParams_t LmComplianceParams;
-
     BoardInitMcu();
     BoardInitPeriph();
 
-    parameters.Region = LORAMAC_REGION_US915;
-    parameters.AdrEnable = true;
-    parameters.TxDatarate = DR_0;
-    parameters.PublicNetworkEnable = true;
-    parameters.DataBufferMaxSize = LM_BUFFER_SIZE;
-    parameters.DataBuffer = psLmDataBuffer;
+    lmh_parameters.Region = LORAMAC_REGION_US915;
+    lmh_parameters.AdrEnable = true;
+    lmh_parameters.TxDatarate = DR_0;
+    lmh_parameters.PublicNetworkEnable = true;
+    lmh_parameters.DataBufferMaxSize = LM_BUFFER_SIZE;
+    lmh_parameters.DataBuffer = psLmDataBuffer;
 
-    switch (parameters.Region)
+    switch (lmh_parameters.Region)
     {
     case LORAMAC_REGION_EU868:
     case LORAMAC_REGION_RU864:
     case LORAMAC_REGION_CN779:
-        parameters.DutyCycleEnabled = true;
+        lmh_parameters.DutyCycleEnabled = true;
         break;
     default:
-        parameters.DutyCycleEnabled = false;
+        lmh_parameters.DutyCycleEnabled = false;
         break;
     }
 
     memset(&lmh_callbacks, 0, sizeof(LmHandlerCallbacks_t));
     lmh_callbacks_setup(&lmh_callbacks);
-
-    lmh_fragmentation_parameters.OnProgress = OnFragProgress;
-    lmh_fragmentation_parameters.OnDone = OnFragDone;
-    lmh_fragmentation_parameters.DecoderCallbacks.FragDecoderWrite = FragDecoderWrite;
-    lmh_fragmentation_parameters.DecoderCallbacks.FragDecoderRead = FragDecoderRead;
-    lmh_fragmentation_parameters.DecoderCallbacks.FragDecoderErase = FragDecoderErase;
-
-    LmHandlerErrorStatus_t status = LmHandlerInit(&lmh_callbacks, &parameters);
-    if (status != LORAMAC_HANDLER_SUCCESS)
-    {
-        am_util_stdio_printf("\r\n\r\nLoRaWAN application framework "
-                             "initialization failed\r\n\r\n");
-        console_print_prompt();
-    }
+    LmHandlerInit(&lmh_callbacks, &lmh_parameters);
     LmHandlerSetSystemMaxRxError(20);
+
     LmHandlerPackageRegister(PACKAGE_ID_COMPLIANCE, &LmComplianceParams);
+
     LmHandlerPackageRegister(PACKAGE_ID_CLOCK_SYNC, NULL);
+
     LmHandlerPackageRegister(PACKAGE_ID_REMOTE_MCAST_SETUP, NULL);
-    LmHandlerPackageRegister(PACKAGE_ID_FRAGMENTATION, &lmh_fragmentation_parameters);
+
+    lmhp_fragmentation_setup(&lmhp_fragmentation_parameters);
+    LmHandlerPackageRegister(PACKAGE_ID_FRAGMENTATION, &lmhp_fragmentation_parameters);
 }
 
 void lorawan_wake_on_radio_irq()
@@ -334,7 +226,6 @@ static void lorawan_task(void *pvParameters)
     lorawan_task_setup();
 
     am_hal_gpio_pinconfig(AM_BSP_GPIO_LED4, g_AM_HAL_GPIO_OUTPUT);
-
     while (1)
     {
         am_hal_gpio_state_write(AM_BSP_GPIO_LED4, AM_HAL_GPIO_OUTPUT_SET);
