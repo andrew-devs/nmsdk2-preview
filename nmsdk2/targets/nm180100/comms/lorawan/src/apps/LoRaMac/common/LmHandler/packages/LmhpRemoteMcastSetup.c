@@ -232,6 +232,7 @@ static void LmhpRemoteMcastSetupProcess( void )
 
     CRITICAL_SECTION_BEGIN( );
     state = LmhpRemoteMcastSetupState.SessionState;
+    LmhpRemoteMcastSetupState.SessionState = REMOTE_MCAST_SETUP_SESSION_STATE_IDLE;
     CRITICAL_SECTION_END( );
 
     switch( state )
