@@ -45,7 +45,7 @@ static portBASE_TYPE application_task_cli_entry(
 
 static CLI_Command_Definition_t application_task_cli_definition = {
     (const char *const) "app",
-    (const char *const) "app:\tApplication Commands.\r\n",
+    (const char *const) "app    :  Application Commands.\r\n",
     application_task_cli_entry, -1};
 
 static size_t argc;

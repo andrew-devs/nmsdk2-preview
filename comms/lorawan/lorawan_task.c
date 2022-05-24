@@ -152,6 +152,9 @@ static void lorawan_task_handle_command()
         case LORAWAN_SYNC_MAC:
             LmHandlerDeviceTimeReq();
             break;
+        case LORAWAN_CLASS_SET:
+            LmHandlerRequestClass((DeviceClass_t)command.pvParameters);
+            break;
         default:
             break;
         }
@@ -213,10 +216,9 @@ void lorawan_wake_on_timer_irq()
 
 static void lorawan_task(void *pvParameters)
 {
-    FreeRTOS_CLIRegisterCommand(&lorawan_command_definition);
-
     am_util_stdio_printf("\r\n\r\nLoRaWAN Application Demo Original\r\n\r\n");
 
+    lorawan_task_cli_register();
     lorawan_task_setup();
 
     am_hal_gpio_pinconfig(AM_BSP_GPIO_LED4, g_AM_HAL_GPIO_OUTPUT);

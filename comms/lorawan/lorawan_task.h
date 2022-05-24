@@ -44,7 +44,8 @@ typedef enum
     LORAWAN_JOIN = 0,
     LORAWAN_RESET,
     LORAWAN_SYNC_APP,
-    LORAWAN_SYNC_MAC
+    LORAWAN_SYNC_MAC,
+    LORAWAN_CLASS_SET,
 } lorawan_command_e;
 
 typedef struct

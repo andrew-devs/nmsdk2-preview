@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2020, Northern Mechatronics, Inc.
+ * Copyright (c) 2022, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -42,13 +41,10 @@
 #include <FreeRTOS.h>
 #include <FreeRTOS_CLI.h>
 #include <queue.h>
+#include <timers.h>
 
+#include <LoRaMacTypes.h>
 #include <LmHandler.h>
-#include <LmHandlerMsgDisplay.h>
-#include <LmhpCompliance.h>
-#include <NvmDataMgmt.h>
-#include <board.h>
-#include <timer.h>
 
 #include "eeprom_emulation.h"
 #include "eeprom_emulation_conf.h"
@@ -57,18 +53,45 @@
 #include "lorawan_task_cli.h"
 #include "console_task.h"
 
-static portBASE_TYPE lorawan_cli(char *pcWriteBuffer, size_t xWriteBufferLen,
-                                    const char *pcCommandString);
+static portBASE_TYPE lorawan_task_cli_entry(
+    char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command);
 
-CLI_Command_Definition_t lorawan_command_definition = {
+CLI_Command_Definition_t lorawan_task_cli_definition = {
     (const char *const) "lorawan",
-    (const char *const) "lorawan:\tLoRaWAN Application Framework.\r\n",
-    lorawan_cli, -1};
+    (const char *const) "lorawan:  LoRaWAN Application Layer Commands.\r\n",
+    lorawan_task_cli_entry, -1};
+
+static size_t argc;
+static char *argv[8];
+static char  argz[128];
 
 #define LM_BUFFER_SIZE 242
-static uint8_t psLmDataBuffer[LM_BUFFER_SIZE];
+static uint8_t lorawan_cli_transmit_buffer[LM_BUFFER_SIZE];
 
-static void ConvertHexString(const char *in, size_t inlen, uint8_t *out,
+static TimerHandle_t periodic_transmit_timer = NULL;
+
+static void periodic_transmit_callback(TimerHandle_t handle)
+{
+    uint32_t ui32Count = (uint32_t)pvTimerGetTimerID(handle);
+    ui32Count++;
+    vTimerSetTimerID(handle, (void *)ui32Count);
+
+    am_util_stdio_sprintf((char *)lorawan_cli_transmit_buffer, "%d", ui32Count);
+    uint32_t length = strlen((char *)lorawan_cli_transmit_buffer);
+
+    lorawan_transmit(LM_APPLICATION_PORT,
+        LORAMAC_HANDLER_UNCONFIRMED_MSG,
+        length,
+        lorawan_cli_transmit_buffer);
+}
+
+void lorawan_task_cli_register()
+{
+    FreeRTOS_CLIRegisterCommand(&lorawan_task_cli_definition);
+    argc = 0;
+}
+
+static void convert_hex_string(const char *in, size_t inlen, uint8_t *out,
                              size_t *outlen)
 {
     size_t n = 0;
@@ -100,351 +123,231 @@ static void ConvertHexString(const char *in, size_t inlen, uint8_t *out,
     }
 }
 
-static void prvApplicationHelpSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
-                                  const char *pcCommandString)
+static void lorawan_task_cli_help(char *pui8OutBuffer, size_t argc, char **argv)
 {
-    const char *pcParameterString;
-    portBASE_TYPE xParameterStringLength;
+    strcat(pui8OutBuffer, "\r\nusage: lorawan <command>\r\n");
+    strcat(pui8OutBuffer, "\r\n");
+    strcat(pui8OutBuffer, "supported commands are:\r\n");
+    strcat(pui8OutBuffer, "  class    get/set class\r\n");
+    strcat(pui8OutBuffer, "  clear    reformat eeprom\r\n");
+    strcat(pui8OutBuffer, "  datetime get/set/sync time\r\n");
+    strcat(pui8OutBuffer, "  join\r\n");
+    strcat(pui8OutBuffer, "  periodic\r\n");
+    strcat(pui8OutBuffer, "  send\r\n");
+}
 
-    pcParameterString =
-        FreeRTOS_CLIGetParameter(pcCommandString, 2, &xParameterStringLength);
+static void lorawan_task_cli_class(char *pui8OutBuffer, size_t argc, char **argv)
+{
+    DeviceClass_t cls;
 
-    if (pcParameterString == NULL)
+    if (argc == 3)
     {
-        strcat(pcWriteBuffer, "usage: lorawan [command] [<args>]\r\n");
-        strcat(pcWriteBuffer, "\r\n");
-        strcat(pcWriteBuffer, "Supported commands are:\r\n");
-        strcat(pcWriteBuffer, "  join\r\n");
-        strcat(pcWriteBuffer, "  reset\r\n");
-        strcat(pcWriteBuffer, "  class\r\n");
-        strcat(pcWriteBuffer, "  send\r\n");
-        strcat(pcWriteBuffer, "  periodic\r\n");
-        strcat(pcWriteBuffer, "  format\r\n");
-        strcat(pcWriteBuffer, "  sync\r\n");
-        strcat(pcWriteBuffer, "  datetime\r\n");
-        strcat(pcWriteBuffer, "\r\n");
-        strcat(pcWriteBuffer, "See 'lorawan help [command] for the details "
-                              "of each command.\r\n");
+        if (strcmp(argv[2], "get") == 0)
+        {
+            am_util_stdio_sprintf(pui8OutBuffer, "\n\rCurrent Class: ");
+
+            cls = LmHandlerGetCurrentClass();
+            switch(cls)
+            {
+            case CLASS_A:
+                strcat(pui8OutBuffer, "A");
+                break;
+            case CLASS_B:
+                strcat(pui8OutBuffer, "B");
+                break;
+            case CLASS_C:
+                strcat(pui8OutBuffer, "C");
+                break;
+            }
+            strcat(pui8OutBuffer, "\n\r");
+        }
     }
-    else if (strncmp(pcParameterString, "join", 4) == 0)
+    else if (argc == 4)
     {
-        strcat(pcWriteBuffer, "usage: lorawan join\r\n");
-        strcat(pcWriteBuffer, "Join a LoRaWAN network.\r\n");
-    }
-    else if (strncmp(pcParameterString, "reset", 5) == 0)
-    {
-        strcat(pcWriteBuffer, "usage: lorawan reset\r\n");
-        strcat(pcWriteBuffer, "Stop and reset the LoRaMac stack.\r\n");
-    }
-    else if (strncmp(pcParameterString, "class", 5) == 0)
-    {
-        strcat(pcWriteBuffer, "usage: lorawan class [get | set <class>]\r\n");
-        strcat(pcWriteBuffer, "\r\n");
-    }
-    else if (strncmp(pcParameterString, "send", 3) == 0)
-    {
-        strcat(pcWriteBuffer, "usage: lorawan send <port> <ack> [msg]\r\n");
-        strcat(pcWriteBuffer, "\r\n");
-        strcat(pcWriteBuffer, "Where:\r\n");
-        strcat(pcWriteBuffer, "  port  is the uplink port number\r\n");
-        strcat(pcWriteBuffer,
-               "  ack   request message confirmation from the server\r\n");
-        strcat(pcWriteBuffer, "  msg   payload content\r\n");
-    }
-    else if (strncmp(pcParameterString, "periodic", 8) == 0)
-    {
-        strcat(pcWriteBuffer,
-               "usage: lorawan periodic [start <period>|stop]\r\n");
-        strcat(pcWriteBuffer, "\r\n");
-        strcat(pcWriteBuffer, "Where:\r\n");
-        strcat(pcWriteBuffer,
-               "  start   to begin transmitting periodically\r\n");
-        strcat(pcWriteBuffer, "  stop    to stop transmitting\r\n");
-        strcat(pcWriteBuffer, "  period  defines how often to transmit in "
-                              "seconds (default is 10s)\r\n");
-    }
-    else if (strncmp(pcParameterString, "format", 3) == 0)
-    {
-        strcat(pcWriteBuffer, "usage: lorawan format\r\n");
-        strcat(pcWriteBuffer, "delete and format context storage.\r\n");
-    }
-    else if (strncmp(pcParameterString, "sync", 3) == 0)
-    {
-        strcat(pcWriteBuffer, "usage: lorawan sync [app|mac]\r\n");
-        strcat(pcWriteBuffer,
-               "app  time synchronization using the application layer.\r\n");
-        strcat(pcWriteBuffer,
-               "mac  time synchronization using the MAC layer.\r\n");
-        strcat(pcWriteBuffer, "Note:  Only valid if the network server "
-                              "supports the command.\r\n");
-    }
-    else if (strncmp(pcParameterString, "datetime", 3) == 0)
-    {
-        strcat(pcWriteBuffer, "usage: lorawan datetime\r\n");
-        strcat(pcWriteBuffer, "Display the current system time.\r\n");
+        if (strcmp(argv[2], "set") == 0)
+        {
+            switch(argv[3][0])
+            {
+            case 'a':
+            case 'A':
+                cls = CLASS_A;
+                break;
+            case 'b':
+            case 'B':
+                cls = CLASS_B;
+                break;
+            case 'c':
+            case 'C':
+                cls = CLASS_C;
+                break;
+            default:
+                am_util_stdio_sprintf(pui8OutBuffer, "\n\rUnknown class requested.\n\r");
+                return;
+            }
+
+            lorawan_command_t command;
+            command.eCommand = LORAWAN_CLASS_SET;
+            command.pvParameters = (void *)cls;
+            lorawan_send_command(&command);
+        }
     }
 }
 
-static void prvApplicationSendSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
-                                  const char *pcCommandString)
+static void lorawan_task_cli_datetime(char *pui8OutBuffer, size_t argc, char **argv)
 {
-    const char *pcParameterString;
-    portBASE_TYPE xParameterStringLength;
-
-    LmHandlerMsgTypes_t ack = LORAMAC_HANDLER_UNCONFIRMED_MSG;
-    uint8_t port = LM_APPLICATION_PORT;
-    uint8_t argc = FreeRTOS_CLIGetNumberOfParameters(pcCommandString);
-
-    pcParameterString =
-        FreeRTOS_CLIGetParameter(pcCommandString, 2, &xParameterStringLength);
-    switch (argc)
+    if (argc == 2)
     {
-    case 2:
-    {
-        memcpy(psLmDataBuffer, pcParameterString, xParameterStringLength);
+        SysTime_t timestamp = SysTimeGet();
+        struct tm localtime;
+
+        SysTimeLocalTime(timestamp.Seconds, &localtime);
+
+        am_util_stdio_sprintf(
+            pui8OutBuffer,
+            "\n\rUnix timestamp: %d\n\rStack Time: %02d/%02d/%04d %02d:%02d:%02d (UTC0)\n\r",
+            timestamp.Seconds,
+            localtime.tm_mon + 1,
+            localtime.tm_mday,
+            localtime.tm_year + 1900,
+            localtime.tm_hour,
+            localtime.tm_min,
+            localtime.tm_sec);
+
+        return;
     }
-    break;
-    case 3:
+
+    lorawan_command_t command;
+    if (argc >= 3)
     {
-        pcParameterString = FreeRTOS_CLIGetParameter(pcCommandString, 2,
-                                                     &xParameterStringLength);
-        if (pcParameterString == NULL)
+        if (strcmp(argv[2], "sync") == 0)
         {
-            strcat(pcWriteBuffer, "error: missing port number\r\n");
-            return;
+            if (argc == 3)
+            {
+                command.eCommand = LORAWAN_SYNC_MAC;
+            }
+            else
+            {
+                command.eCommand = LORAWAN_SYNC_APP;
+            }
+            lorawan_send_command(&command);
+        }
+    }
+}
+
+static void lorawan_task_cli_periodic(char *pui8OutBuffer, size_t argc, char **argv)
+{
+    uint32_t ui32Period;
+    if (argc < 3)
+    {
+        return;
+    }
+
+    if (strcmp(argv[2], "stop") == 0)
+    {
+        if (periodic_transmit_timer)
+        {
+            xTimerStop(periodic_transmit_timer, portMAX_DELAY);
+            xTimerDelete(periodic_transmit_timer, portMAX_DELAY);
+            periodic_transmit_timer = NULL;
+        }
+    }
+    else if (strcmp(argv[2], "start") == 0)
+    {
+        if (argc == 3)
+        {
+            ui32Period = 30;
         }
         else
         {
-            port = atoi(pcParameterString);
+            ui32Period = atoi(argv[3]);
         }
-
-        pcParameterString = FreeRTOS_CLIGetParameter(pcCommandString, 3,
-                                                     &xParameterStringLength);
-        memcpy(psLmDataBuffer, pcParameterString, xParameterStringLength);
-    }
-    break;
-    case 4:
-    {
-        pcParameterString = FreeRTOS_CLIGetParameter(pcCommandString, 2,
-                                                     &xParameterStringLength);
-        if (pcParameterString == NULL)
+            
+        if (periodic_transmit_timer == NULL)
         {
-            strcat(pcWriteBuffer, "error: missing port number\r\n");
-            return;
+            periodic_transmit_timer = xTimerCreate(
+                "lorawan periodic",
+                pdMS_TO_TICKS(ui32Period * 1000),
+                pdTRUE,
+                (void *)0,
+                periodic_transmit_callback
+            );
+            xTimerStart(periodic_transmit_timer, portMAX_DELAY);
         }
         else
         {
-            port = atoi(pcParameterString);
+            xTimerChangePeriod(periodic_transmit_timer,
+                pdMS_TO_TICKS(ui32Period),
+                portMAX_DELAY);
         }
+    }
+}
 
-        pcParameterString = FreeRTOS_CLIGetParameter(pcCommandString, 3,
-                                                     &xParameterStringLength);
-        if (pcParameterString == NULL)
-        {
-            strcat(pcWriteBuffer,
-                   "error: missing acknowledgement parameter\r\n");
-            return;
-        }
-        else
-        {
-            ack = atoi(pcParameterString) > 0 ? LORAMAC_HANDLER_CONFIRMED_MSG
-                                              : LORAMAC_HANDLER_UNCONFIRMED_MSG;
-        }
-        pcParameterString = FreeRTOS_CLIGetParameter(pcCommandString, 4,
-                                                     &xParameterStringLength);
-        memcpy(psLmDataBuffer, pcParameterString, xParameterStringLength);
-    }
-    break;
-    }
+static void lorawan_task_cli_send(char *pui8OutBuffer, size_t argc, char **argv)
+{
+    uint32_t port = LM_APPLICATION_PORT;
+    uint32_t ack  = LORAMAC_HANDLER_UNCONFIRMED_MSG;
 
     size_t length;
-    ConvertHexString(pcParameterString, xParameterStringLength, psLmDataBuffer,
-                     &length);
+    convert_hex_string(
+        argv[argc - 1],
+        strlen(argv[argc - 1]),
+        lorawan_cli_transmit_buffer,
+        &length);
+    lorawan_cli_transmit_buffer[length] = 0;
 
-    psLmDataBuffer[length] = 0;
-    am_util_stdio_printf((char *)psLmDataBuffer);
-    am_util_stdio_printf("\r\n");
+    if (argc == 5)
+    {
+        port = atoi(argv[2]);
+        ack  = atoi(argv[3]) ?
+            LORAMAC_HANDLER_CONFIRMED_MSG : 
+            LORAMAC_HANDLER_UNCONFIRMED_MSG;
+    }
+    else if (argc == 4)
+    {
+        port = atoi(argv[2]);
+    }
 
-    lorawan_transmit(port, ack, length, psLmDataBuffer);
+    lorawan_transmit(port, ack, length, lorawan_cli_transmit_buffer);
 }
 
-static void prvApplicationPeriodicSubCommand(char *pcWriteBuffer,
-                                      size_t xWriteBufferLen,
-                                      const char *pcCommandString)
+static portBASE_TYPE lorawan_task_cli_entry(
+    char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command)
 {
-}
+    pui8OutBuffer[0] = 0;
 
-static void prvApplicationSyncSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
-                                  const char *pcCommandString)
-{
-    lorawan_command_t command;
+    strcpy(argz, pui8Command);
+    FreeRTOS_CLIExtractParameters(argz, &argc, argv);
 
-    const char *pcParameterString;
-    portBASE_TYPE xParameterStringLength;
-
-    pcParameterString =
-        FreeRTOS_CLIGetParameter(pcCommandString, 2, &xParameterStringLength);
-    if (pcParameterString == NULL)
+    if (strcmp(argv[1], "help") == 0)
     {
-        return;
+        lorawan_task_cli_help(pui8OutBuffer, argc, argv);
     }
-
-    if (strncmp(pcParameterString, "app", xParameterStringLength) == 0)
+    else if (strcmp(argv[1], "class") == 0)
     {
-        command.eCommand = LORAWAN_SYNC_APP;
-        lorawan_send_command(&command);
+        lorawan_task_cli_class(pui8OutBuffer, argc, argv);
     }
-    else if (strncmp(pcParameterString, "mac", xParameterStringLength) == 0)
+    else if (strcmp(argv[1], "clear") == 0)
     {
-        command.eCommand = LORAWAN_SYNC_MAC;
-        lorawan_send_command(&command);
+        eeprom_format(EEPROM_EMULATION_FLASH_PAGES);
+        eeprom_init(EEPROM_EMULATION_FLASH_PAGES);
     }
-}
-
-static void prvApplicationDatetimeSubCommand(char *pcWriteBuffer,
-                                      size_t xWriteBufferLen,
-                                      const char *pcCommandString)
-{
-    am_hal_rtc_time_t hal_rtc_time;
-    am_hal_rtc_time_get(&hal_rtc_time);
-
-    struct tm ts;
-
-    ts.tm_hour = hal_rtc_time.ui32Hour;
-    ts.tm_min = hal_rtc_time.ui32Minute;
-    ts.tm_sec = hal_rtc_time.ui32Second;
-    ts.tm_year = hal_rtc_time.ui32Year + 2000 - 1900;
-    ts.tm_mon = hal_rtc_time.ui32Month;
-    ts.tm_mday = hal_rtc_time.ui32DayOfMonth;
-
-    char *buf = pcWriteBuffer + strlen(pcWriteBuffer);
-    strftime(buf, 64, "Hardware Time: %Y-%m-%d %H:%M:%S %Z\r\n", &ts);
-
-    SysTime_t curtime = SysTimeGet();
-    buf += strlen(buf);
-    am_util_stdio_sprintf(buf, "LoRaMAC Stack Time: %d\r\n", curtime.Seconds);
-}
-
-static void prvApplicationClassSubCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
-                                  const char *pcCommandString)
-{
-    const char *pcParameterString;
-    portBASE_TYPE xParameterStringLength;
-
-    pcParameterString =
-        FreeRTOS_CLIGetParameter(pcCommandString, 2, &xParameterStringLength);
-    if (pcParameterString == NULL)
+    else if (strcmp(argv[1], "datetime") == 0)
     {
-        return;
+        lorawan_task_cli_datetime(pui8OutBuffer, argc, argv);
     }
-
-    if (strncmp(pcParameterString, "get", xParameterStringLength) == 0)
-    {
-        DeviceClass_t cls = LmHandlerGetCurrentClass();
-        switch(cls)
-        {
-        case CLASS_A:
-            am_util_stdio_printf("Class A\r\n");
-            break;
-        case CLASS_B:
-            am_util_stdio_printf("Class B\r\n");
-            break;
-        case CLASS_C:
-            am_util_stdio_printf("Class C\r\n");
-            break;
-        }
-    }
-    else if (strncmp(pcParameterString, "set", xParameterStringLength) == 0)
-    {
-        pcParameterString =
-            FreeRTOS_CLIGetParameter(pcCommandString, 3, &xParameterStringLength);
-        if (pcParameterString == NULL)
-        {
-            am_util_stdio_printf("Missing class specifier\r\n");
-            return;
-        }
-
-        if (strcmp(pcParameterString, "A") == 0)
-        {
-            LmHandlerRequestClass(CLASS_A);
-            am_util_stdio_printf("Class A requested\r\n");
-        }
-        else if (strcmp(pcParameterString, "B") == 0)
-        {
-            LmHandlerRequestClass(CLASS_B);
-            am_util_stdio_printf("Class B requested\r\n");
-        }
-        else if (strcmp(pcParameterString, "C") == 0)
-        {
-            LmHandlerRequestClass(CLASS_C);
-            am_util_stdio_printf("Class C requested\r\n");
-        }
-
-        lorawan_task_wake();
-    }
-}
-
-static portBASE_TYPE lorawan_cli(char *pcWriteBuffer, size_t xWriteBufferLen,
-                                    const char *pcCommandString)
-{
-    const char *pcParameterString;
-    portBASE_TYPE xParameterStringLength;
-
-    pcWriteBuffer[0] = 0x0;
-
-    pcParameterString =
-        FreeRTOS_CLIGetParameter(pcCommandString, 1, &xParameterStringLength);
-    if (pcParameterString == NULL)
-    {
-        return pdFALSE;
-    }
-
-    if (strncmp(pcParameterString, "help", xParameterStringLength) == 0)
-    {
-        prvApplicationHelpSubCommand(pcWriteBuffer, xWriteBufferLen,
-                                     pcCommandString);
-    }
-    else if (strncmp(pcParameterString, "join", xParameterStringLength) == 0)
+    else if (strcmp(argv[1], "join") == 0)
     {
         lorawan_command_t command;
         command.eCommand = LORAWAN_JOIN;
         lorawan_send_command(&command);
     }
-    else if (strncmp(pcParameterString, "reset", xParameterStringLength) == 0)
+    else if (strcmp(argv[1], "periodic") == 0)
     {
-        LoRaMacDeInitialization();
+        lorawan_task_cli_periodic(pui8OutBuffer, argc, argv);
     }
-    else if (strncmp(pcParameterString, "class", xParameterStringLength) == 0)
+    else if (strcmp(argv[1], "send") == 0)
     {
-        prvApplicationClassSubCommand(pcWriteBuffer, xWriteBufferLen,
-                pcCommandString);
-    }
-    else if (strncmp(pcParameterString, "send", xParameterStringLength) == 0)
-    {
-        prvApplicationSendSubCommand(pcWriteBuffer, xWriteBufferLen,
-                                     pcCommandString);
-    }
-    else if (strncmp(pcParameterString, "periodic", xParameterStringLength) ==
-             0)
-    {
-        prvApplicationPeriodicSubCommand(pcWriteBuffer, xWriteBufferLen,
-                                         pcCommandString);
-    }
-    else if (strncmp(pcParameterString, "format", xParameterStringLength) == 0)
-    {
-        eeprom_format(EEPROM_EMULATION_FLASH_PAGES);
-        eeprom_init(EEPROM_EMULATION_FLASH_PAGES);
-    }
-    else if (strncmp(pcParameterString, "sync", xParameterStringLength) == 0)
-    {
-        prvApplicationSyncSubCommand(pcWriteBuffer, xWriteBufferLen,
-                                     pcCommandString);
-    }
-    else if (strncmp(pcParameterString, "datetime", xParameterStringLength) ==
-             0)
-    {
-        prvApplicationDatetimeSubCommand(pcWriteBuffer, xWriteBufferLen,
-                                         pcCommandString);
+        lorawan_task_cli_send(pui8OutBuffer, argc, argv);
     }
 
     return pdFALSE;

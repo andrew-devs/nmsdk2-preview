@@ -32,9 +32,6 @@
 #ifndef _LORAWAN_TASK_CLI_H_
 #define _LORAWAN_TASK_CLI_H_
 
-#include <FreeRTOS.h>
-#include <FreeRTOS_CLI.h>
-
-extern CLI_Command_Definition_t lorawan_command_definition;
+extern void lorawan_task_cli_register();
 
 #endif

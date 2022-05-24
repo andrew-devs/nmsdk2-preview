@@ -52,6 +52,8 @@ static void lmh_on_nvm_data_change(LmHandlerNvmContextStates_t state, uint16_t s
     am_util_stdio_printf("\r\n");
     DisplayNvmDataChange(state, size);
     console_print_prompt();
+
+    lorawan_task_wake();
 }
 
 static void lmh_on_network_parameters_change(CommissioningParams_t *params)
@@ -59,6 +61,8 @@ static void lmh_on_network_parameters_change(CommissioningParams_t *params)
     am_util_stdio_printf("\r\n");
     DisplayNetworkParametersUpdate(params);
     console_print_prompt();
+
+    lorawan_task_wake();
 }
 
 static void lmh_on_mac_mcps_request(LoRaMacStatus_t status, McpsReq_t *mcpsReq,
@@ -69,6 +73,8 @@ static void lmh_on_mac_mcps_request(LoRaMacStatus_t status, McpsReq_t *mcpsReq,
     am_util_stdio_printf("FPORT       : %d\r\n", mcpsReq->Req.Unconfirmed.fPort);
     am_util_stdio_printf("BUFFERSIZE  : %d\r\n\r\n", mcpsReq->Req.Unconfirmed.fBufferSize);
     console_print_prompt();
+
+    lorawan_task_wake();
 }
 
 static void lmh_on_mac_mlme_request(LoRaMacStatus_t status, MlmeReq_t *mlmeReq,
@@ -77,6 +83,8 @@ static void lmh_on_mac_mlme_request(LoRaMacStatus_t status, MlmeReq_t *mlmeReq,
     am_util_stdio_printf("\r\n");
     DisplayMacMlmeRequestUpdate(status, mlmeReq, nextTxDelay);
     console_print_prompt();
+
+    lorawan_task_wake();
 }
 
 static void lmh_on_join_request(LmHandlerJoinParams_t *params)
@@ -91,6 +99,8 @@ static void lmh_on_join_request(LmHandlerJoinParams_t *params)
         DisplayJoinRequestUpdate(params);
         console_print_prompt();
     }
+
+    lorawan_task_wake();
 }
 
 static void lmh_on_tx_data(LmHandlerTxParams_t *params)
@@ -98,6 +108,8 @@ static void lmh_on_tx_data(LmHandlerTxParams_t *params)
     am_util_stdio_printf("\r\n");
     DisplayTxUpdate(params);
     console_print_prompt();
+
+    lorawan_task_wake();
 }
 
 static void lmh_on_rx_data(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
@@ -105,16 +117,24 @@ static void lmh_on_rx_data(LmHandlerAppData_t *appData, LmHandlerRxParams_t *par
     am_util_stdio_printf("\r\n");
     DisplayRxUpdate(appData, params);
     console_print_prompt();
+
+    lorawan_task_wake();
 }
 
 static void lmh_on_class_change(DeviceClass_t deviceClass)
 {
     DisplayClassUpdate(deviceClass);
+    console_print_prompt();
+
+    lorawan_task_wake();
 }
 
 static void lmh_on_beacon_status_change(LoRaMacHandlerBeaconParams_t *params)
 {
     DisplayBeaconUpdate(params);
+    console_print_prompt();
+
+    lorawan_task_wake();
 }
 
 static void lmh_on_sys_time_update(bool isSynchronized, int32_t timeCorrection)
@@ -123,6 +143,9 @@ static void lmh_on_sys_time_update(bool isSynchronized, int32_t timeCorrection)
     am_util_stdio_printf("Clock Synchronized: %d\r\n", isSynchronized);
     am_util_stdio_printf("Correction: %d\r\n", timeCorrection);
     am_util_stdio_printf("\r\n");
+    console_print_prompt();
+
+    lorawan_task_wake();
 }
 
 void lmh_callbacks_setup(LmHandlerCallbacks_t *cb)
