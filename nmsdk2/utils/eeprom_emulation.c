@@ -37,7 +37,8 @@
 
 #include "eeprom_emulation.h"
 
-#define MAX_NUMBER_OF_PAGES 4
+#define EEPROM_UNALLOCATED    0x00
+#define EEPROM_ALLOCATED      0x01
 
 #define SIZE_OF_DATA 2                                            /* 2 bytes */
 #define SIZE_OF_VIRTUAL_ADDRESS 2                                 /* 2 bytes */
@@ -50,22 +51,6 @@ typedef enum {
     EEPROM_PAGE_STATUS_RECEIVING = 0xAA,
     EEPROM_PAGE_STATUS_ACTIVE = 0x00,
 } eeprom_page_status_e;
-
-typedef struct {
-    uint32_t *pui32StartAddress;
-    uint32_t *pui32EndAddress;
-} eeprom_page_t;
-
-/* Variables to keep track of what pages are active and receiving. */
-static int activePageNumber = -1;
-static int receivingPageNumber = -1;
-
-static bool initialized = false;
-
-/* Array of all pages allocated to the eeprom */
-static eeprom_page_t pages[MAX_NUMBER_OF_PAGES];
-
-static int16_t numberOfPagesAllocated;
 
 /* Since the data to be written to flash must be read from ram, the data used to
  * set the pages' status, is explicitly written to the ram beforehand. */
@@ -93,12 +78,13 @@ static inline int eeprom_page_set_receiving(eeprom_page_t *page)
         page->pui32StartAddress, SIZE_OF_VARIABLE >> 2);
 }
 
-static bool eeprom_validate_empty(eeprom_page_t *page)
+static bool eeprom_page_validate_empty(eeprom_page_t *page)
 {
     uint32_t *address = page->pui32StartAddress;
 
     while (address <= page->pui32EndAddress) {
-        if (*address != 0xFFFFFFFF) {
+        uint32_t value = *address;
+        if (value != 0xFFFFFFFF) {
             return false;
         }
         address++;
@@ -141,109 +127,54 @@ static bool eeprom_page_write(eeprom_page_t *page, uint16_t virtual_address,
     return false;
 }
 
-bool eeprom_format(uint32_t numberOfPages)
-{
-    uint32_t ui32EraseCount = 0xFF000001;
-    int i;
-    int status;
-
-    numberOfPagesAllocated = numberOfPages;
-
-    for (i = 0; i < numberOfPagesAllocated; i++)
-    {
-        pages[i].pui32StartAddress =
-            (uint32_t *)(AM_HAL_FLASH_LARGEST_VALID_ADDR -
-                         i * AM_HAL_FLASH_PAGE_SIZE - AM_HAL_FLASH_PAGE_SIZE +
-                         1);
-        pages[i].pui32EndAddress =
-            (uint32_t *)(AM_HAL_FLASH_LARGEST_VALID_ADDR -
-                         i * AM_HAL_FLASH_PAGE_SIZE - 4 + 1);
-    }
-
-    for (i = numberOfPagesAllocated - 1; i >= 0; i--)
-    {
-        if (!eeprom_validate_empty(&pages[i]))
-        {
-            status = am_hal_flash_page_erase(
-                AM_HAL_FLASH_PROGRAM_KEY,
-                AM_HAL_FLASH_ADDR2INST((uint32_t)(pages[i].pui32StartAddress)),
-                AM_HAL_FLASH_ADDR2PAGE((uint32_t)(pages[i].pui32StartAddress)));
-            if (status != 0)
-            {
-                return false;
-            }
-        }
-    }
-
-    activePageNumber = 0;
-
-    receivingPageNumber = -1;
-
-    status =
-        am_hal_flash_program_main(AM_HAL_FLASH_PROGRAM_KEY, &ui32EraseCount,
-                                  pages[activePageNumber].pui32StartAddress, 1);
-
-    if (status != 0)
-    {
-        return false;
-    }
-
-    status = eeprom_page_set_active(&pages[activePageNumber]);
-    if (status != 0)
-    {
-        return false;
-    }
-
-    return true;
-}
-
-static int eeprom_page_transfer(uint16_t virtual_address, uint16_t data)
+static int eeprom_page_transfer(eeprom_handle_t *pHandle, uint16_t virtual_address, uint16_t data)
 {
     int status;
     uint32_t *pui32ActiveAddress;
     uint32_t *pui32ReceivingAddress;
+    uint32_t *pui32EndAddress;
     uint32_t ui32EraseCount;
     bool bNewData = false;
 
     /* If there is no receiving page predefined, set it to cycle through all allocated pages. */
-    if (receivingPageNumber == -1)
+    if (pHandle->receiving_page == -1)
     {
-        receivingPageNumber = activePageNumber + 1;
+        pHandle->receiving_page = pHandle->active_page + 1;
 
-        if (receivingPageNumber >= numberOfPagesAllocated)
+        if (pHandle->receiving_page >= pHandle->allocated_pages)
         {
-            receivingPageNumber = 0;
+            pHandle->receiving_page = 0;
         }
 
         /* Check if the new receiving page really is erased. */
-        if (!eeprom_validate_empty(&pages[receivingPageNumber]))
+        if (!eeprom_page_validate_empty(&(pHandle->pages[pHandle->receiving_page])))
         {
             /* If this page is not truly erased, it means that it has been written to
              * from outside this API, this could be an address conflict. */
             am_hal_flash_page_erase(
                 AM_HAL_FLASH_PROGRAM_KEY,
                 AM_HAL_FLASH_ADDR2INST(
-                    (uint32_t)(pages[receivingPageNumber].pui32StartAddress)),
+                    (uint32_t)(pHandle->pages[pHandle->receiving_page].pui32StartAddress)),
                 AM_HAL_FLASH_ADDR2PAGE(
-                    (uint32_t)(pages[receivingPageNumber].pui32StartAddress)));
+                    (uint32_t)(pHandle->pages[pHandle->receiving_page].pui32StartAddress)));
         }
     }
 
     /* Set the status of the receiving page */
-    eeprom_page_set_receiving(&pages[receivingPageNumber]);
+    eeprom_page_set_receiving(&(pHandle->pages[pHandle->receiving_page]));
 
     /* If an address was specified, write it to the receiving page */
     if (virtual_address != 0)
     {
-        eeprom_page_write(&pages[receivingPageNumber], virtual_address, data);
+        eeprom_page_write(&(pHandle->pages[pHandle->receiving_page]), virtual_address, data);
     }
 
     /* Start at the last word. */
-    pui32ActiveAddress = pages[activePageNumber].pui32EndAddress;
+    pui32ActiveAddress = pHandle->pages[pHandle->active_page].pui32EndAddress;
 
     /* Iterate through all words in the active page. Each time a new virtual
      * address is found, write it and it's data to the receiving page */
-    while (pui32ActiveAddress > pages[activePageNumber].pui32StartAddress)
+    while (pui32ActiveAddress > pHandle->pages[pHandle->active_page].pui32StartAddress)
     {
         // 0x0000 and 0xFFFF are not valid virtual addresses.
         if ((uint16_t)(*pui32ActiveAddress >> 16) == 0x0000 ||
@@ -252,23 +183,23 @@ static int eeprom_page_transfer(uint16_t virtual_address, uint16_t data)
             bNewData = false;
         }
         /*
-    // Omit when transfer is initiated from inside the eeprom_init() function.
-    else if (address != 0 && (uint16_t)(*pui32ActiveAddress >> 16) > numberOfVariablesDeclared)
-    {
-      // A virtual address outside the virtual address space, defined by the
-      // number of variables declared, are considered garbage.
-      newVariable = false;
-    }
-    */
+        // Omit when transfer is initiated from inside the eeprom_init() function.
+        else if (address != 0 && (uint16_t)(*pui32ActiveAddress >> 16) > numberOfVariablesDeclared)
+        {
+        // A virtual address outside the virtual address space, defined by the
+        // number of variables declared, are considered garbage.
+        newVariable = false;
+        }
+        */
         else
         {
             pui32ReceivingAddress =
-                pages[receivingPageNumber].pui32StartAddress + 1;
+                pHandle->pages[pHandle->receiving_page].pui32StartAddress + 1;
 
             /* Start at the beginning of the receiving page. Check if the variable is
              * already transfered. */
-            while (pui32ReceivingAddress <=
-                   pages[receivingPageNumber].pui32EndAddress)
+            pui32EndAddress = pHandle->pages[pHandle->receiving_page].pui32EndAddress;
+            while (pui32ReceivingAddress <= pui32EndAddress)
             {
                 /* Variable found, and is therefore already transferred. */
                 if ((uint16_t)(*pui32ActiveAddress >> 16) ==
@@ -290,7 +221,7 @@ static int eeprom_page_transfer(uint16_t virtual_address, uint16_t data)
         if (bNewData)
         {
             /* Write the new variable to the receiving page. */
-            eeprom_page_write(&pages[receivingPageNumber],
+            eeprom_page_write(&(pHandle->pages[pHandle->receiving_page]),
                               (uint16_t)(*pui32ActiveAddress >> 16),
                               (uint16_t)(*pui32ActiveAddress));
         }
@@ -298,10 +229,10 @@ static int eeprom_page_transfer(uint16_t virtual_address, uint16_t data)
     }
 
     /* Update erase count */
-    ui32EraseCount = eeprom_erase_counter();
+    ui32EraseCount = eeprom_erase_counter(pHandle);
 
     /* If a new page cycle is started, increment the erase count. */
-    if (receivingPageNumber == 0)
+    if (pHandle->receiving_page == 0)
         ui32EraseCount++;
 
     /* Set the first byte, in this way the page status is not altered when the erase count is written. */
@@ -310,7 +241,7 @@ static int eeprom_page_transfer(uint16_t virtual_address, uint16_t data)
     /* Write the erase count obtained to the active page head. */
     status = am_hal_flash_program_main(
         AM_HAL_FLASH_PROGRAM_KEY, &ui32EraseCount,
-        pages[receivingPageNumber].pui32StartAddress, SIZE_OF_VARIABLE >> 2);
+        pHandle->pages[pHandle->receiving_page].pui32StartAddress, SIZE_OF_VARIABLE >> 2);
     if (status != 0)
     {
         return status;
@@ -320,70 +251,75 @@ static int eeprom_page_transfer(uint16_t virtual_address, uint16_t data)
     status = am_hal_flash_page_erase(
         AM_HAL_FLASH_PROGRAM_KEY,
         AM_HAL_FLASH_ADDR2INST(
-            (uint32_t)(pages[activePageNumber].pui32StartAddress)),
+            (uint32_t)(pHandle->pages[pHandle->active_page].pui32StartAddress)),
         AM_HAL_FLASH_ADDR2PAGE(
-            (uint32_t)(pages[activePageNumber].pui32StartAddress)));
+            (uint32_t)(pHandle->pages[pHandle->active_page].pui32StartAddress)));
     if (status != 0)
     {
         return status;
     }
 
     /* Set the receiving page to be the new active page. */
-    status = eeprom_page_set_active(&pages[receivingPageNumber]);
+    status = eeprom_page_set_active(&(pHandle->pages[pHandle->receiving_page]));
     if (status != 0)
     {
         return status;
     }
 
-    activePageNumber = receivingPageNumber;
-    receivingPageNumber = -1;
+    pHandle->active_page = pHandle->receiving_page;
+    pHandle->receiving_page = -1;
 
     return 0;
 }
 
-bool eeprom_init(uint32_t numberOfPages)
+uint32_t eeprom_init(uint32_t ui32StartAddress, uint32_t ui32NumberOfPages, eeprom_handle_t *pHandle)
 {
-    if (initialized)
-        return false;
-
-    initialized = true;
-
-    if (numberOfPages < 2)
+    if (pHandle == NULL)
     {
-        numberOfPages = 2;
+        return false;
     }
 
-    numberOfPagesAllocated = numberOfPages;
+    if (ui32NumberOfPages < 2)
+    {
+        return false;
+    }
+
+    if (pHandle->pages == NULL)
+    {
+        return false;
+    }
+
+    pHandle->allocated = EEPROM_ALLOCATED;
+    pHandle->active_page = -1;
+    pHandle->receiving_page = -1;
+    pHandle->allocated_pages = ui32NumberOfPages;
 
     /* Initialize the address of each page */
     uint32_t i;
-    for (i = 0; i < numberOfPages; i++)
+    for (i = 0; i < ui32NumberOfPages; i++)
     {
-        pages[i].pui32StartAddress =
-            (uint32_t *)(AM_HAL_FLASH_LARGEST_VALID_ADDR -
-                         i * AM_HAL_FLASH_PAGE_SIZE - AM_HAL_FLASH_PAGE_SIZE +
-                         1);
-        pages[i].pui32EndAddress =
-            (uint32_t *)(AM_HAL_FLASH_LARGEST_VALID_ADDR -
-                         i * AM_HAL_FLASH_PAGE_SIZE - 4 + 1);
+        uint32_t ui32PageStart = ui32StartAddress + i * AM_HAL_FLASH_PAGE_SIZE;
+        uint32_t ui32PageEnd = ui32PageStart + (AM_HAL_FLASH_PAGE_SIZE) - 4;
+        pHandle->pages[i].pui32StartAddress = (uint32_t *)(ui32PageStart);
+        pHandle->pages[i].pui32EndAddress = (uint32_t *)(ui32PageEnd);
     }
 
     /* Check status of each page */
-    for (i = 0; i < numberOfPages; i++)
+    for (i = 0; i < ui32NumberOfPages; i++)
     {
-        switch (eeprom_page_get_status(&pages[i]))
+        switch (eeprom_page_get_status(&(pHandle->pages[i])))
         {
         case EEPROM_PAGE_STATUS_ACTIVE:
-            if (activePageNumber == -1) {
-                activePageNumber = i;
+            if (pHandle->active_page == -1) {
+                pHandle->active_page = i;
             } else {
                 // More than one active page found. This is an invalid system state.
                 return false;
             }
             break;
         case EEPROM_PAGE_STATUS_RECEIVING:
-            if (receivingPageNumber == -1) {
-                receivingPageNumber = i;
+            if (pHandle->receiving_page == -1) {
+                pHandle->receiving_page = i;
             } else {
                 // More than one receiving page found. This is an invalid system state.
                 return false;
@@ -391,54 +327,96 @@ bool eeprom_init(uint32_t numberOfPages)
             break;
         case EEPROM_PAGE_STATUS_ERASED:
             // Validate if the page is really erased, and erase it if not.
-            if (!eeprom_validate_empty(&pages[i])) {
+            if (!eeprom_page_validate_empty(&(pHandle->pages[i]))) {
                 am_hal_flash_page_erase(AM_HAL_FLASH_PROGRAM_KEY,
                                         AM_HAL_FLASH_ADDR2INST((uint32_t)(
-                                            pages[i].pui32StartAddress)),
+                                            pHandle->pages[i].pui32StartAddress)),
                                         AM_HAL_FLASH_ADDR2PAGE((uint32_t)(
-                                            pages[i].pui32StartAddress)));
+                                            pHandle->pages[i].pui32StartAddress)));
             }
             break;
         default:
             // Undefined page status, erase page.
             am_hal_flash_page_erase(
                 AM_HAL_FLASH_PROGRAM_KEY,
-                AM_HAL_FLASH_ADDR2INST((uint32_t)(pages[i].pui32StartAddress)),
-                AM_HAL_FLASH_ADDR2PAGE((uint32_t)(pages[i].pui32StartAddress)));
+                AM_HAL_FLASH_ADDR2INST((uint32_t)(pHandle->pages[i].pui32StartAddress)),
+                AM_HAL_FLASH_ADDR2PAGE((uint32_t)(pHandle->pages[i].pui32StartAddress)));
             break;
         }
     }
 
-    if (receivingPageNumber == -1 && activePageNumber == -1) {
+    if ((pHandle->receiving_page == -1) && (pHandle->active_page == -1)) {
         return false;
     }
 
-    if (receivingPageNumber == -1) {
+    if (pHandle->receiving_page == -1) {
         return true;
-    } else if (activePageNumber == -1) {
-        activePageNumber = receivingPageNumber;
-        receivingPageNumber = -1;
-        eeprom_page_set_active(&pages[activePageNumber]);
+    } else if (pHandle->active_page == -1) {
+        pHandle->active_page = pHandle->receiving_page;
+        pHandle->receiving_page = -1;
+        eeprom_page_set_active(&(pHandle->pages[pHandle->active_page]));
     } else {
-        eeprom_page_transfer(0, 0);
+        eeprom_page_transfer(pHandle, 0, 0);
     }
 
     return true;
 }
 
-bool eeprom_read(uint16_t virtual_address, uint16_t *data)
+uint32_t eeprom_format(eeprom_handle_t *pHandle)
 {
-    uint32_t *pui32Address;
+    uint32_t ui32EraseCount = 0xFF000001;
+    int i;
+    int status;
 
-    if (!initialized) {
+    for (i = pHandle->allocated_pages - 1; i >= 0; i--)
+    {
+        if (!eeprom_page_validate_empty(&(pHandle->pages[i])))
+        {
+            status = am_hal_flash_page_erase(
+                AM_HAL_FLASH_PROGRAM_KEY,
+                AM_HAL_FLASH_ADDR2INST((uint32_t)(pHandle->pages[i].pui32StartAddress)),
+                AM_HAL_FLASH_ADDR2PAGE((uint32_t)(pHandle->pages[i].pui32StartAddress)));
+            if (status != 0)
+            {
+                return false;
+            }
+        }
+    }
+
+    pHandle->active_page = 0;
+    pHandle->receiving_page = -1;
+
+    status = am_hal_flash_program_main(
+        AM_HAL_FLASH_PROGRAM_KEY, &ui32EraseCount,
+        pHandle->pages[pHandle->active_page].pui32StartAddress, 1);
+
+    if (status != 0)
+    {
         return false;
     }
 
-    pui32Address = (pages[activePageNumber].pui32EndAddress);
+    status = eeprom_page_set_active(&(pHandle->pages[pHandle->active_page]));
+    if (status != 0)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+uint32_t eeprom_read(eeprom_handle_t *pHandle, uint16_t virtual_address, uint16_t *data)
+{
+    uint32_t *pui32Address;
+
+    if (!pHandle->allocated) {
+        return false;
+    }
+
+    pui32Address = (pHandle->pages[pHandle->active_page].pui32EndAddress);
 
     // 0x0000 and 0xFFFF are illegal addresses.
     if (virtual_address != 0x0000 && virtual_address != 0xFFFF) {
-        while (pui32Address > pages[activePageNumber].pui32StartAddress) {
+        while (pui32Address > pHandle->pages[pHandle->active_page].pui32StartAddress) {
             if ((uint16_t)(*pui32Address >> 16) == virtual_address) {
                 *data = (uint16_t)(*pui32Address);
                 return true;
@@ -452,14 +430,14 @@ bool eeprom_read(uint16_t virtual_address, uint16_t *data)
     return false;
 }
 
-bool eeprom_read_array(uint16_t virtual_address, uint8_t *data, uint8_t *len)
+uint32_t eeprom_read_array(eeprom_handle_t *pHandle, uint16_t virtual_address, uint8_t *data, uint8_t *len)
 {
-    uint16_t value;
-    if (!initialized) {
+    if (!pHandle->allocated) {
         return false;
     }
 
-    if (!eeprom_read(virtual_address, &value))
+    uint16_t value;
+    if (!eeprom_read(pHandle, virtual_address, &value))
     {
         return false;
     }
@@ -468,7 +446,7 @@ bool eeprom_read_array(uint16_t virtual_address, uint8_t *data, uint8_t *len)
     data[0] = value & 0xFF;
     for (int i = 1; i < *len; i++)
     {
-        if (!eeprom_read(virtual_address + i, &value))
+        if (!eeprom_read(pHandle, virtual_address + i, &value))
         {
             *len = i;
             return false;
@@ -479,16 +457,17 @@ bool eeprom_read_array(uint16_t virtual_address, uint8_t *data, uint8_t *len)
     return true;
 }
 
-bool eeprom_read_array_len(uint16_t virtual_address, uint8_t *data, uint16_t size)
+uint32_t eeprom_read_array_len(eeprom_handle_t *pHandle, uint16_t virtual_address, uint8_t *data, uint16_t size)
 {
     uint16_t value;
-    if (!initialized) {
+
+    if (!pHandle->allocated) {
         return false;
     }
 
     for (int i = 0; i < size; i++)
     {
-        if (!eeprom_read(virtual_address + i, &value))
+        if (!eeprom_read(pHandle, virtual_address + i, &value))
         {
             return false;
         }
@@ -498,97 +477,89 @@ bool eeprom_read_array_len(uint16_t virtual_address, uint8_t *data, uint16_t siz
     return true;
 }
 
-void eeprom_write(uint16_t virtual_address, uint16_t data)
+uint32_t eeprom_write(eeprom_handle_t *pHandle, uint16_t virtual_address, uint16_t data)
 {
-    if (!initialized) {
-        return;
-    }
-
-    uint16_t stored_value;
-
-    if (eeprom_read(virtual_address, &stored_value)) {
-        if (stored_value == data) {
-            return;
-        }
-    }
-
-    if (!eeprom_page_write(&pages[activePageNumber], virtual_address, data)) {
-        eeprom_page_transfer(virtual_address, data);
-    }
-}
-
-void eeprom_write_array(uint16_t virtual_address, uint8_t *data, uint8_t len)
-{
-    if (!initialized) {
-        return;
-    }
-
-    uint16_t stored_value;
-
-    if (eeprom_read(virtual_address, &stored_value)) {
-        uint8_t stored_len = (stored_value >> 8) & 0xFF;
-        if (stored_len != len) {
-            for (int i = 0; i < stored_len; i++)
-            {
-                eeprom_delete(virtual_address + i);
-            }
-        }
-    }
-
-    uint16_t value = (len << 8) | data[0];
-    if (!eeprom_page_write(&pages[activePageNumber], virtual_address, value)) {
-        eeprom_page_transfer(virtual_address, value);
-    }
-
-    for (int i = 1; i < len; i++)
-    {
-        if (!eeprom_page_write(&pages[activePageNumber], virtual_address + i, data[i])) {
-            eeprom_page_transfer(virtual_address + i, data[i]);
-        }
-    }
-}
-
-void eeprom_write_array_len(uint16_t virtual_address, uint8_t *data, uint16_t size)
-{
-    if (!initialized) {
-        return;
-    }
-
-    for (int i = 0; i < size; i++)
-    {
-        eeprom_write(virtual_address + i, data[i]);
-    }
-}
-
-bool eeprom_delete_array(uint16_t virtual_address)
-{
-    bool bDeleted = false;
-    if (!initialized) {
+    if (!pHandle->allocated) {
         return false;
     }
 
     uint16_t stored_value;
 
-    if (eeprom_read(virtual_address, &stored_value))
-    {
-        uint8_t stored_len = (stored_value >> 8) & 0xFF;
-        for (int i = 0; i < stored_len; i++)
-        {
-            bDeleted |= eeprom_delete(virtual_address + i);
+    if (eeprom_read(pHandle, virtual_address, &stored_value)) {
+        if (stored_value == data) {
+            return true;
         }
     }
 
-    return bDeleted;
+    if (!eeprom_page_write(&(pHandle->pages[pHandle->active_page]), virtual_address, data)) {
+        eeprom_page_transfer(pHandle, virtual_address, data);
+    }
+
+    return true;
 }
 
-bool eeprom_delete(uint16_t virtual_address)
+uint32_t eeprom_write_array(eeprom_handle_t *pHandle, uint16_t virtual_address, uint8_t *data, uint8_t len)
 {
+    if (!pHandle->allocated) {
+        return false;
+    }
+
+    uint16_t stored_value;
+
+    if (eeprom_read(pHandle, virtual_address, &stored_value)) {
+        uint8_t stored_len = (stored_value >> 8) & 0xFF;
+        if (stored_len != len) {
+            for (int i = 0; i < stored_len; i++)
+            {
+                eeprom_delete(pHandle, virtual_address + i);
+            }
+        }
+    }
+
+    uint16_t value = (len << 8) | data[0];
+    if (!eeprom_page_write(
+            &(pHandle->pages[pHandle->active_page]),
+            virtual_address, value)) {
+        eeprom_page_transfer(pHandle, virtual_address, value);
+    }
+
+    for (int i = 1; i < len; i++)
+    {
+        if (!eeprom_page_write(
+                &(pHandle->pages[pHandle->active_page]), virtual_address + i, data[i])) {
+            eeprom_page_transfer(pHandle, virtual_address + i, data[i]);
+        }
+    }
+    
+    return true;
+}
+
+uint32_t eeprom_write_array_len(eeprom_handle_t *pHandle, uint16_t virtual_address, uint8_t *data, uint16_t size)
+{
+    if (!pHandle->allocated) {
+        return false;
+    }
+
+    for (int i = 0; i < size; i++)
+    {
+        eeprom_write(pHandle, virtual_address + i, data[i]);
+    }
+
+    return true;
+}
+
+uint32_t eeprom_delete(eeprom_handle_t *pHandle, uint16_t virtual_address)
+{
+    if (!pHandle->allocated) {
+        return false;
+    }
+
     bool bDeleted = false;
 
     uint32_t data = 0x0000FFFF;
-    uint32_t *address = pages[activePageNumber].pui32EndAddress;
+    uint32_t *address = pHandle->pages[pHandle->active_page].pui32EndAddress;
 
-    while (address > pages[activePageNumber].pui32StartAddress)
+    while (address > pHandle->pages[pHandle->active_page].pui32StartAddress)
     {
         if ((uint16_t)(*address >> 16) == virtual_address)
         {
@@ -604,9 +575,30 @@ bool eeprom_delete(uint16_t virtual_address)
     return bDeleted;
 }
 
-uint32_t eeprom_erase_counter(void)
+uint32_t eeprom_delete_array(eeprom_handle_t *pHandle, uint16_t virtual_address)
 {
-    if (activePageNumber == -1)
+    if (!pHandle->allocated) {
+        return false;
+    }
+
+    bool bDeleted = false;
+    uint16_t stored_value;
+
+    if (eeprom_read(pHandle, virtual_address, &stored_value))
+    {
+        uint8_t stored_len = (stored_value >> 8) & 0xFF;
+        for (int i = 0; i < stored_len; i++)
+        {
+            bDeleted |= eeprom_delete(pHandle, virtual_address + i);
+        }
+    }
+
+    return bDeleted;
+}
+
+uint32_t eeprom_erase_counter(eeprom_handle_t *pHandle)
+{
+    if (pHandle->active_page == -1)
     {
         return 0xFFFFFF;
     }
@@ -614,7 +606,7 @@ uint32_t eeprom_erase_counter(void)
     uint32_t eraseCount;
 
     /* The number of erase cycles is the 24 LSB of the first word of the active page. */
-    eraseCount = (*(pages[activePageNumber].pui32StartAddress) & 0x00FFFFFF);
+    eraseCount = (*(pHandle->pages[pHandle->active_page].pui32StartAddress) & 0x00FFFFFF);
 
     /* if the page has never been erased, return 0. */
     if (eraseCount == 0xFFFFFF) {

@@ -19,4 +19,5 @@ LORAWAN_INC += -I$(LORAWAN)/../../targets/nm180100/comms/lorawan/src/apps/LoRaMa
 LORAWAN_INC += -I$(LORAWAN)/../../targets/nm180100/comms/lorawan/src/apps/LoRaMac/common/LmHandler
 LORAWAN_INC += -I$(LORAWAN)/../../targets/nm180100/comms/lorawan/src/apps/LoRaMac/common/LmHandler/packages
 LORAWAN_INC += -I$(LORAWAN)/../../targets/nm180100/comms/lorawan/src/boards/nm180100
-#LORAWAN_INC += -I$(dir $(LORAWAN_EEPROM_CONFIG))
+LORAWAN_INC += -I$(LORAWAN)/../../utils
+LORAWAN_INC += -I$(dir $(LORAWAN_EEPROM_CONFIG))

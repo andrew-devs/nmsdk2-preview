@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2021, Northern Mechatronics, Inc.
+ * Copyright (c) 2022, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,28 +29,14 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EEPROM_EMULATION_H_
-#define _EEPROM_EMULATION_H_
+#ifndef EEPROM_EMULATION_CONF_H_
+#define EEPROM_EMULATION_CONF_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "eeprom_emulation.h"
 
-bool eeprom_init(uint32_t);
-bool eeprom_format(uint32_t);
-bool eeprom_read(uint16_t address, uint16_t *data);
-bool eeprom_read_array(uint16_t address, uint8_t *data, uint8_t *len);
-bool eeprom_read_array_len(uint16_t address, uint8_t *data, uint16_t size);
-void eeprom_write(uint16_t address, uint16_t data);
-void eeprom_write_array(uint16_t address, uint8_t *data, uint8_t len);
-void eeprom_write_array_len(uint16_t address, uint8_t *data, uint16_t size);
-bool eeprom_delete(uint16_t virtual_address);
-bool eeprom_delete_array(uint16_t virtual_address);
+#define LORAWAN_EEPROM_NUMBER_OF_PAGES    (2)
+#define LORAWAN_EEPROM_START_ADDRESS      (AM_HAL_FLASH_LARGEST_VALID_ADDR + 1 - (LORAWAN_EEPROM_NUMBER_OF_PAGES * AM_HAL_FLASH_PAGE_SIZE))
 
-uint32_t eeprom_erase_counter(void);
+extern eeprom_handle_t lorawan_eeprom_handle;
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _EEPROM_EMULATION_H_ */
+#endif /* EEPROM_EMULATION_CONF_H_ */

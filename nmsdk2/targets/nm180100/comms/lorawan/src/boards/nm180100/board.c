@@ -35,9 +35,12 @@
 
 #include "board.h"
 #include "eeprom_emulation.h"
-#include "eeprom_emulation_conf.h"
+#include "lorawan_eeprom_config.h"
 #include "rtc-board.h"
 #include <sx126x-board.h>
+
+eeprom_handle_t lorawan_eeprom_handle;
+eeprom_page_t lorawan_eeprom_pages[LORAWAN_EEPROM_NUMBER_OF_PAGES];
 
 void BoardCriticalSectionBegin(uint32_t *mask)
 {
@@ -52,8 +55,15 @@ void BoardCriticalSectionEnd(uint32_t *mask)
 void BoardInitPeriph(void)
 {
     RtcInit();
+    /*
     if (!eeprom_init(EEPROM_EMULATION_FLASH_PAGES)) {
         eeprom_format(EEPROM_EMULATION_FLASH_PAGES);
+    }
+    */
+
+    lorawan_eeprom_handle.pages = lorawan_eeprom_pages;
+    if (!eeprom_init(LORAWAN_EEPROM_START_ADDRESS, LORAWAN_EEPROM_NUMBER_OF_PAGES, &lorawan_eeprom_handle)) {
+        eeprom_format(&lorawan_eeprom_handle);
     }
 }
 

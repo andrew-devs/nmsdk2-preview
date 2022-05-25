@@ -1,7 +1,7 @@
 /*
  * BSD 3-Clause License
  *
- * Copyright (c) 2020, Northern Mechatronics, Inc.
+ * Copyright (c) 2022, Northern Mechatronics, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,46 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef EEPROM_EMULATION_CONF_H_
-#define EEPROM_EMULATION_CONF_H_
+#ifndef _EEPROM_EMULATION_H_
+#define _EEPROM_EMULATION_H_
 
-#define EEPROM_EMULATION_FLASH_PAGES    (2)
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#endif /* EEPROM_EMULATION_CONF_H_ */
+#define EEPROM_STATUS_OK          0
+#define EEPROM_STATUS_ERROR       1
+
+typedef struct {
+    uint32_t *pui32StartAddress;
+    uint32_t *pui32EndAddress;
+} eeprom_page_t;
+
+typedef struct {
+    uint8_t allocated;
+    int16_t active_page;
+    int16_t receiving_page;
+    int16_t allocated_pages;
+    eeprom_page_t *pages;
+} eeprom_handle_t;
+
+uint32_t eeprom_init(uint32_t ui32StartAddress, uint32_t ui32NumberOfPages, eeprom_handle_t *pHandle);
+uint32_t eeprom_format(eeprom_handle_t *pHandle);
+
+uint32_t eeprom_read(eeprom_handle_t *pHandle, uint16_t address, uint16_t *data);
+uint32_t eeprom_read_array(eeprom_handle_t *pHandle, uint16_t address, uint8_t *data, uint8_t *len);
+uint32_t eeprom_read_array_len(eeprom_handle_t *pHandle, uint16_t address, uint8_t *data, uint16_t size);
+
+uint32_t eeprom_write(eeprom_handle_t *pHandle, uint16_t address, uint16_t data);
+uint32_t eeprom_write_array(eeprom_handle_t *pHandle, uint16_t address, uint8_t *data, uint8_t len);
+uint32_t eeprom_write_array_len(eeprom_handle_t *pHandle, uint16_t address, uint8_t *data, uint16_t size);
+uint32_t eeprom_delete(eeprom_handle_t *pHandle, uint16_t virtual_address);
+uint32_t eeprom_delete_array(eeprom_handle_t *pHandle, uint16_t virtual_address);
+
+uint32_t eeprom_erase_counter(eeprom_handle_t *pHandle);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _EEPROM_EMULATION_H_ */

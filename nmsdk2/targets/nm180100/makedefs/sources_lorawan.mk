@@ -48,7 +48,7 @@ LORAWAN_SRC += sx1262-board.c
 
 LORAWAN_SRC += lorawan_power.c
 
-LORAWAN_SRC += eeprom_emulation.c
+#LORAWAN_SRC += eeprom_emulation.c
 
 LORAWAN_SRC += NvmDataMgmt.c
 LORAWAN_SRC += FragDecoder.c

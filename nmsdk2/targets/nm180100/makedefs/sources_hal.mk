@@ -48,4 +48,5 @@ HAL_SRC += am_util_stdio.c
 HAL_SRC += am_util_string.c
 HAL_SRC += am_util_time.c
 
-#HAL_SRC += eeprom_emulation.c
+VPATH += $(HAL)/../../utils
+HAL_SRC += eeprom_emulation.c

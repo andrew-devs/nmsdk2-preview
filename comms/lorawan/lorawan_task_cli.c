@@ -47,7 +47,7 @@
 #include <LmHandler.h>
 
 #include "eeprom_emulation.h"
-#include "eeprom_emulation_conf.h"
+#include "lorawan_eeprom_config.h"
 
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
@@ -328,8 +328,7 @@ static portBASE_TYPE lorawan_task_cli_entry(
     }
     else if (strcmp(argv[1], "clear") == 0)
     {
-        eeprom_format(EEPROM_EMULATION_FLASH_PAGES);
-        eeprom_init(EEPROM_EMULATION_FLASH_PAGES);
+        eeprom_format(&lorawan_eeprom_handle);
     }
     else if (strcmp(argv[1], "datetime") == 0)
     {

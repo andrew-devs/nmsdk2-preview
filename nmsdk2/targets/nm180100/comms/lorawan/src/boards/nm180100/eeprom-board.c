@@ -23,16 +23,18 @@
 #include <am_mcu_apollo.h>
 #include "utilities.h"
 #include "eeprom-board.h"
+#include "eeprom_emulation.h"
+#include "lorawan_eeprom_config.h"
 
 uint8_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
 {
-    eeprom_write_array_len(addr + 1, buffer, size);
+    eeprom_write_array_len(&lorawan_eeprom_handle, addr + 1, buffer, size);
     return 1;
 }
 
 uint8_t EepromMcuReadBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
 {
-    if (!eeprom_read_array_len(addr + 1, buffer, size))
+    if (!eeprom_read_array_len(&lorawan_eeprom_handle, addr + 1, buffer, size))
     {
         return 0;
     }
