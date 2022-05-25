@@ -72,6 +72,23 @@ void am_stimer_cmpr2_isr(void)
 {
     am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREC);
 
+    am_hal_stimer_int_disable(AM_HAL_STIMER_INT_COMPARED);
+    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPARED);
+
+    if (RtcTimerContext.Running) {
+        if (am_hal_stimer_counter_get() >= RtcTimerContext.Alarm_Ticks) {
+            RtcTimerContext.Running = false;
+            TimerIrqHandler();
+            
+            lorawan_wake_on_timer_irq();
+        }
+    }
+}
+
+void am_stimer_cmpr3_isr(void)
+{
+    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPARED);
+
     if (RtcTimerContext.Running) {
         if (am_hal_stimer_counter_get() >= RtcTimerContext.Alarm_Ticks) {
             RtcTimerContext.Running = false;
@@ -86,14 +103,18 @@ void RtcInit(void)
 {
     if (RtcInitialized == false) {
         am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREC);
+        am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPARED);
         NVIC_EnableIRQ(STIMER_CMPR2_IRQn);
+        NVIC_EnableIRQ(STIMER_CMPR3_IRQn);
 
         uint32_t oldCfg = am_hal_stimer_config(AM_HAL_STIMER_CFG_FREEZE);
 
         am_hal_stimer_config(
             (oldCfg & ~(AM_HAL_STIMER_CFG_FREEZE | CTIMER_STCFG_CLKSEL_Msk))
             | CLOCK_SOURCE
-            | AM_HAL_STIMER_CFG_COMPARE_C_ENABLE);
+            | AM_HAL_STIMER_CFG_COMPARE_C_ENABLE
+            | AM_HAL_STIMER_CFG_COMPARE_D_ENABLE
+            );
 
         RtcSetTimerContext();
 
@@ -145,6 +166,10 @@ void RtcStopAlarm(void)
 {
     am_hal_stimer_int_disable(AM_HAL_STIMER_INT_COMPAREC);
     am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREC);
+
+    am_hal_stimer_int_disable(AM_HAL_STIMER_INT_COMPARED);
+    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPARED);
+
     RtcTimerContext.Running = false;
 }
 
@@ -159,7 +184,10 @@ void RtcStartAlarm(uint32_t timeout)
 
     RtcTimerContext.Running     = true;
     am_hal_stimer_compare_delta_set(2, relative);
+    am_hal_stimer_compare_delta_set(3, relative+1);
+
     am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREC);
+    am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPARED);
 }
 
 uint32_t RtcGetTimerValue(void) { return am_hal_stimer_counter_get(); }
