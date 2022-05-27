@@ -60,8 +60,8 @@ extern void lorawan_task_wake_from_isr(BaseType_t *higher_priority_task_woken);
 
 extern void lorawan_send_command(lorawan_command_t *pCommand);
 
-extern void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *ui8Data);
-extern void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t *pHandle);
+extern void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *pui8Data);
+extern void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t pHandle);
 extern void lorawan_receive_unregister(uint32_t ui32Port, QueueHandle_t pHandle);
 
 #endif

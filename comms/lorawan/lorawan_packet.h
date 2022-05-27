@@ -53,7 +53,7 @@ typedef struct
     LmHandlerMsgTypes_t tType;
     uint32_t    ui32Port;
     uint32_t    ui32Length;
-    uint8_t    *ui8Data;
+    uint8_t    *pui8Data;
 } lorawan_tx_packet_t;
 
 

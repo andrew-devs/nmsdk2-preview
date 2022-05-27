@@ -68,7 +68,7 @@ static uint8_t psLmDataBuffer[LM_BUFFER_SIZE];
 static LmHandlerParams_t         lmh_parameters;
 static LmHandlerCallbacks_t      lmh_callbacks;
 static LmhpFragmentationParams_t lmhp_fragmentation_parameters;
-static LmhpComplianceParams_t    LmComplianceParams;
+static LmhpComplianceParams_t    lmhp_compliance_parameters;
 
 static volatile bool McSessionStarted = false;
 
@@ -115,7 +115,7 @@ static void lorawan_task_handle_uplink()
 
         if (packet.ui32Length > 0)
         {
-            memcpy(psLmDataBuffer, packet.ui8Data, packet.ui32Length);
+            memcpy(psLmDataBuffer, packet.pui8Data, packet.ui32Length);
         }
         app_data.Port = packet.ui32Port;
         app_data.BufferSize = packet.ui32Length;
@@ -184,7 +184,7 @@ static void lorawan_task_setup()
     LmHandlerInit(&lmh_callbacks, &lmh_parameters);
     LmHandlerSetSystemMaxRxError(20);
 
-    LmHandlerPackageRegister(PACKAGE_ID_COMPLIANCE, &LmComplianceParams);
+    LmHandlerPackageRegister(PACKAGE_ID_COMPLIANCE, &lmhp_compliance_parameters);
 
     LmHandlerPackageRegister(PACKAGE_ID_CLOCK_SYNC, NULL);
 
@@ -256,7 +256,7 @@ void lorawan_send_command(lorawan_command_t *pCommand)
     lorawan_task_wake();
 }
 
-void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *ui8Data)
+void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *pui8Data)
 {
     lorawan_tx_packet_t packet;
 
@@ -266,16 +266,16 @@ void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, 
 
     if (ui32Length > 0)
     {
-        packet.ui8Data = ui8Data;
+        packet.pui8Data = pui8Data;
         /*
         uint8_t *payload = pvPortMalloc(ui32Length);
-        memcpy(payload, ui8Data, ui32Length);
-        packet.ui8Data = payload;
+        memcpy(payload, pui8Data, ui32Length);
+        packet.pui8Data = payload;
         */
     }
     else
     {
-        packet.ui8Data = NULL;
+        packet.pui8Data = NULL;
     }
 
     xQueueSend(lorawan_task_transmit_queue, &packet, 0);

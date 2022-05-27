@@ -176,15 +176,13 @@ void lmh_callbacks_setup(LmHandlerCallbacks_t *cb)
     vListInitialise(&lorawan_receive_callback_list);
 }
 
-void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t *pHandle)
+void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t pHandle)
 {
-    *pHandle = xQueueCreate(2, sizeof(lorawan_rx_packet_t));
-
     ListItem_t *list_item = pvPortMalloc(sizeof(ListItem_t));
     vListInitialiseItem(list_item);
 
     list_item->xItemValue = ui32Port;
-    list_item->pvOwner = *pHandle;
+    list_item->pvOwner = pHandle;
 
     vListInsertEnd(&lorawan_receive_callback_list, list_item);
 }
