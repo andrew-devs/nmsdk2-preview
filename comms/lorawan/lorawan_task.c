@@ -64,6 +64,12 @@ typedef struct
     uint8_t    *ui8Data;
 } lorawan_packet_t;
 
+typedef struct
+{
+    uint32_t ui32Port;
+    QueueHandle_t QueueHandle;
+} lorawan_receive_callback_t;
+
 static TaskHandle_t lorawan_task_handle;
 static QueueHandle_t lorawan_task_command_queue;
 static QueueHandle_t lorawan_task_transmit_queue;
@@ -198,6 +204,8 @@ static void lorawan_task_setup()
 
     lmhp_fragmentation_setup(&lmhp_fragmentation_parameters);
     LmHandlerPackageRegister(PACKAGE_ID_FRAGMENTATION, &lmhp_fragmentation_parameters);
+
+    memset(lorawan_receive_callback, 0, sizeof(lorawan_receive_callback_t) * LORAWAN_MAX_RX_MONITORED_PORTS);
 }
 
 void lorawan_wake_on_radio_irq()
@@ -287,4 +295,14 @@ void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, 
     xQueueSend(lorawan_task_transmit_queue, &packet, 0);
 
     lorawan_task_wake();
+}
+
+void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t *pHandle)
+{
+    *pHandle = xQueueCreate(2, sizeof(lorawan_packet_t));
+}
+
+void lorawan_receive_unregister(uint32_t ui32Port, QueueHandle_t pHandle)
+{
+    vQueueReset(pHandle);
 }
