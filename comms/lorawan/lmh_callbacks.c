@@ -33,12 +33,18 @@
 #include <am_util.h>
 
 #include <FreeRTOS.h>
+#include <list.h>
 
 #include <LmHandlerMsgDisplay.h>
 
+#include "lorawan_packet.h"
 #include "lorawan_task.h"
 #include "lmh_callbacks.h"
 #include "console_task.h"
+
+static List_t lorawan_receive_callback_list;
+
+static void lmh_rx_callback_service(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params);
 
 static void lmh_on_mac_process(void)
 {
@@ -118,6 +124,8 @@ static void lmh_on_rx_data(LmHandlerAppData_t *appData, LmHandlerRxParams_t *par
     DisplayRxUpdate(appData, params);
     console_print_prompt();
 
+    lmh_rx_callback_service(appData, params);
+
     lorawan_task_wake();
 }
 
@@ -164,4 +172,48 @@ void lmh_callbacks_setup(LmHandlerCallbacks_t *cb)
     cb->OnClassChange = lmh_on_class_change;
     cb->OnBeaconStatusChange = lmh_on_beacon_status_change;
     cb->OnSysTimeUpdate = lmh_on_sys_time_update;
+
+    vListInitialise(&lorawan_receive_callback_list);
+}
+
+void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t *pHandle)
+{
+    *pHandle = xQueueCreate(2, sizeof(lorawan_rx_packet_t));
+
+    ListItem_t *list_item = pvPortMalloc(sizeof(ListItem_t));
+    vListInitialiseItem(list_item);
+
+    list_item->xItemValue = ui32Port;
+    list_item->pvOwner = *pHandle;
+
+    vListInsertEnd(&lorawan_receive_callback_list, list_item);
+}
+
+void lorawan_receive_unregister(uint32_t ui32Port, QueueHandle_t pHandle)
+{
+}
+
+void lmh_rx_callback_service(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
+{
+    ListItem_t *pItem = listGET_HEAD_ENTRY(&lorawan_receive_callback_list);
+
+    while (pItem != listGET_END_MARKER(&lorawan_receive_callback_list))
+    {
+        if (pItem->pvOwner)
+        {
+            lorawan_rx_packet_t packet;
+            packet.ui32DownlinkCounter = params->DownlinkCounter;
+            packet.i16DataRate = params->Datarate;
+            packet.i16ReceiveSlot = params->RxSlot;
+            packet.i16RSSI = params->Rssi;
+            packet.i16SNR = params->Snr;
+            packet.ui32Port = appData->Port;
+            packet.ui32Length = appData->BufferSize;
+            packet.pui8Payload = appData->Buffer;
+
+            xQueueSend(pItem->pvOwner, &packet, 0);
+        }
+
+        pItem = listGET_NEXT(pItem);
+    }
 }

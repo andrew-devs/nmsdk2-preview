@@ -32,6 +32,8 @@
 #ifndef _LORAWAN_PACKET_H_
 #define _LORAWAN_PACKET_H_
 
+#include "LmHandler.h"
+
 #define LORAWAN_PACKET_MAX_SIZE     (244)
 
 typedef struct
@@ -44,6 +46,15 @@ typedef struct
     uint32_t ui32Port;
     int32_t  ui32Length;
     uint8_t *pui8Payload;
-} lorawan_packet_t;
+} lorawan_rx_packet_t;
+
+typedef struct 
+{
+    LmHandlerMsgTypes_t tType;
+    uint32_t    ui32Port;
+    uint32_t    ui32Length;
+    uint8_t    *ui8Data;
+} lorawan_tx_packet_t;
+
 
 #endif

@@ -51,24 +51,12 @@
 #include <LmhpRemoteMcastSetup.h>
 #include <board.h>
 
+#include "lorawan_packet.h"
+
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
 #include "lmh_callbacks.h"
 #include "lmhp_fragmentation.h"
-
-typedef struct 
-{
-    LmHandlerMsgTypes_t tType;
-    uint32_t    ui32Port;
-    uint32_t    ui32Length;
-    uint8_t    *ui8Data;
-} lorawan_packet_t;
-
-typedef struct
-{
-    uint32_t ui32Port;
-    QueueHandle_t QueueHandle;
-} lorawan_receive_callback_t;
 
 static TaskHandle_t lorawan_task_handle;
 static QueueHandle_t lorawan_task_command_queue;
@@ -113,7 +101,7 @@ static void lorawan_task_handle_uplink()
         return;
     }
 
-    lorawan_packet_t packet;
+    lorawan_tx_packet_t packet;
     if (xQueuePeek(lorawan_task_transmit_queue, &packet, 0) == pdPASS)
     {
         if (LmHandlerIsBusy() == true)
@@ -204,8 +192,6 @@ static void lorawan_task_setup()
 
     lmhp_fragmentation_setup(&lmhp_fragmentation_parameters);
     LmHandlerPackageRegister(PACKAGE_ID_FRAGMENTATION, &lmhp_fragmentation_parameters);
-
-    memset(lorawan_receive_callback, 0, sizeof(lorawan_receive_callback_t) * LORAWAN_MAX_RX_MONITORED_PORTS);
 }
 
 void lorawan_wake_on_radio_irq()
@@ -251,7 +237,7 @@ void lorawan_task_create(uint32_t ui32Priority)
         &lorawan_task_handle);
 
     lorawan_task_command_queue = xQueueCreate(8, sizeof(lorawan_command_t));
-    lorawan_task_transmit_queue = xQueueCreate(8, sizeof(lorawan_packet_t));
+    lorawan_task_transmit_queue = xQueueCreate(8, sizeof(lorawan_tx_packet_t));
 }
 
 void lorawan_task_wake()
@@ -272,7 +258,7 @@ void lorawan_send_command(lorawan_command_t *pCommand)
 
 void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *ui8Data)
 {
-    lorawan_packet_t packet;
+    lorawan_tx_packet_t packet;
 
     packet.tType      = ui32Ack ? LORAMAC_HANDLER_CONFIRMED_MSG : LORAMAC_HANDLER_UNCONFIRMED_MSG;
     packet.ui32Port   = ui32Port;
@@ -295,14 +281,4 @@ void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, 
     xQueueSend(lorawan_task_transmit_queue, &packet, 0);
 
     lorawan_task_wake();
-}
-
-void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t *pHandle)
-{
-    *pHandle = xQueueCreate(2, sizeof(lorawan_packet_t));
-}
-
-void lorawan_receive_unregister(uint32_t ui32Port, QueueHandle_t pHandle)
-{
-    vQueueReset(pHandle);
 }
