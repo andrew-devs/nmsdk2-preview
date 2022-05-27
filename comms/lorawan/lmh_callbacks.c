@@ -191,6 +191,19 @@ void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t *pHandle)
 
 void lorawan_receive_unregister(uint32_t ui32Port, QueueHandle_t pHandle)
 {
+    ListItem_t *pItem = listGET_HEAD_ENTRY(&lorawan_receive_callback_list);
+
+    while (pItem != listGET_END_MARKER(&lorawan_receive_callback_list))
+    {
+        if ((pItem->pvOwner == pHandle) &&
+            (pItem->xItemValue == ui32Port))
+        {
+            listREMOVE_ITEM(pItem);
+            return;
+        }
+
+        pItem = listGET_NEXT(pItem);
+    }
 }
 
 void lmh_rx_callback_service(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
