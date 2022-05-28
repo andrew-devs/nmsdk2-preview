@@ -6,7 +6,7 @@
             "cppStandard": "c++17",
             "compilerPath": "arm-none-eabi-gcc",
             "defines": [
-                "AM_PART_APOLLO3"
+                "AM_PART_APOLLO3", "SOFT_SE", "CONTEXT_MANGEMENT_ENABLED"
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": false
