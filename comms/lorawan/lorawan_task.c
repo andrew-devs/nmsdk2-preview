@@ -186,20 +186,15 @@ void lorawan_wake_on_timer_irq()
 
 static void lorawan_task(void *pvParameters)
 {
-    am_util_stdio_printf("\r\n\r\nLoRaWAN Application Demo Original\r\n\r\n");
-
     lorawan_task_cli_register();
     lorawan_task_setup();
 
-    am_hal_gpio_pinconfig(AM_BSP_GPIO_LED4, g_AM_HAL_GPIO_OUTPUT);
     while (1)
     {
-        am_hal_gpio_state_write(AM_BSP_GPIO_LED4, AM_HAL_GPIO_OUTPUT_SET);
         lorawan_task_handle_command();
         LmHandlerProcess();
         lorawan_task_handle_uplink();
 
-        am_hal_gpio_state_write(AM_BSP_GPIO_LED4, AM_HAL_GPIO_OUTPUT_CLEAR);
         xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
     }
 }
