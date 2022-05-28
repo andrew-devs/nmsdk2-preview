@@ -29,32 +29,45 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _LORAWAN_PACKET_H_
-#define _LORAWAN_PACKET_H_
+#include <string.h>
 
-#include "LmHandler.h"
+#include "lorawan.h"
 
-#define LORAWAN_PACKET_MAX_SIZE     (244)
-
-typedef struct
+void lorawan_set_device_eui(const char *pcDeviceEUI)
 {
-    uint32_t ui32DownlinkCounter;
-    int16_t  i16DataRate;
-    int16_t  i16RSSI;
-    int16_t  i16SNR;
-    int16_t  i16ReceiveSlot;
-    uint32_t ui32Port;
-    int32_t  ui32Length;
-    uint8_t *pui8Payload;
-} lorawan_rx_packet_t;
+}
 
-typedef struct 
+void lorawan_get_device_eui(char *pcDeviceEUI)
 {
-    LmHandlerMsgTypes_t tType;
-    uint32_t    ui32Port;
-    uint32_t    ui32Length;
-    uint8_t    *pui8Data;
-} lorawan_tx_packet_t;
 
+}
 
-#endif
+void lorawan_set_app_eui(const char *pcAppEUI)
+{
+
+}
+
+void lorawan_get_app_eui(char *pcAppEUI)
+{
+
+}
+
+void lorawan_set_app_key(const char *pcAppKey)
+{
+
+}
+
+void lorawan_get_app_key(char *pcAppKey)
+{
+
+}
+
+void lorawan_set_nwk_key(const char *pcNwkKey)
+{
+
+}
+
+void lorawan_get_nwk_key(char *pcNwkKey)
+{
+
+}

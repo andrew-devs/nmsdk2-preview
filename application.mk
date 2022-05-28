@@ -90,5 +90,6 @@ SRC += soft-se-hal.c
 SRC += soft-se.c
 SRC += lmh_callbacks.c
 SRC += lmhp_fragmentation.c
+SRC += lorawan_se.c
 SRC += lorawan_task.c
 SRC += lorawan_task_cli.c

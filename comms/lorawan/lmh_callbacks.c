@@ -37,7 +37,7 @@
 
 #include <LmHandlerMsgDisplay.h>
 
-#include "lorawan_packet.h"
+#include "lorawan.h"
 #include "lorawan_task.h"
 #include "lmh_callbacks.h"
 #include "console_task.h"

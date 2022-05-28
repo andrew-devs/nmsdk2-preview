@@ -49,6 +49,7 @@
 #include "eeprom_emulation.h"
 #include "lorawan_eeprom_config.h"
 
+#include "lorawan.h"
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
 #include "console_task.h"

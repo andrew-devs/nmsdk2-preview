@@ -51,7 +51,7 @@
 #include <LmhpRemoteMcastSetup.h>
 #include <board.h>
 
-#include "lorawan_packet.h"
+#include "lorawan.h"
 
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"

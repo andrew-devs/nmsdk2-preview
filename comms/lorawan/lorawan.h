@@ -29,18 +29,65 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _LORAWAN_TASK_H_
-#define _LORAWAN_TASK_H_
+#ifndef _LORAWAN_H_
+#define _LORAWAN_H_
 
+#include <stdint.h>
 #include <FreeRTOS.h>
-#include <LmHandler.h>
 #include <queue.h>
+#include <LmHandler.h>
 
-#define LM_APPLICATION_PORT 1
-#define LORAWAN_DEFAULT_CLASS CLASS_A
+typedef enum
+{
+    LORAWAN_JOIN = 0,
+    LORAWAN_RESET,
+    LORAWAN_SYNC_APP,
+    LORAWAN_SYNC_MAC,
+    LORAWAN_CLASS_SET,
+} lorawan_command_e;
 
-extern void lorawan_task_create(uint32_t ui32Priority);
-extern void lorawan_task_wake();
-extern void lorawan_task_wake_from_isr(BaseType_t *higher_priority_task_woken);
+typedef struct
+{
+    lorawan_command_e eCommand;
+    void *pvParameters;
+} lorawan_command_t;
+
+typedef struct
+{
+    uint32_t ui32DownlinkCounter;
+    int16_t  i16DataRate;
+    int16_t  i16RSSI;
+    int16_t  i16SNR;
+    int16_t  i16ReceiveSlot;
+    uint32_t ui32Port;
+    int32_t  ui32Length;
+    uint8_t *pui8Payload;
+} lorawan_rx_packet_t;
+
+typedef struct 
+{
+    LmHandlerMsgTypes_t tType;
+    uint32_t    ui32Port;
+    uint32_t    ui32Length;
+    uint8_t    *pui8Data;
+} lorawan_tx_packet_t;
+
+extern void lorawan_send_command(lorawan_command_t *pCommand);
+
+extern void lorawan_set_device_eui(const char *pcDeviceEUI);
+extern void lorawan_get_device_eui(char *pcDeviceEUI);
+
+extern void lorawan_set_app_eui(const char *pcAppEUI);
+extern void lorawan_get_app_eui(char *pcAppEUI);
+
+extern void lorawan_set_app_key(const char *pcAppKey);
+extern void lorawan_get_app_key(char *pcAppKey);
+
+extern void lorawan_set_nwk_key(const char *pcNwkKey);
+extern void lorawan_get_nwk_key(char *pcNwkKey);
+
+extern void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *pui8Data);
+extern void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t pHandle);
+extern void lorawan_receive_unregister(uint32_t ui32Port, QueueHandle_t pHandle);
 
 #endif
