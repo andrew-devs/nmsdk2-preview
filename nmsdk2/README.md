@@ -15,11 +15,26 @@ modules.  It provides libraries for LoRa direct, LoRaWAN, and BLE wireless conne
 * sed
 * python3
 
+### Build
+* clone the [NMSDK2](https://github.com/NorthernMechatronics/nmsdk2):
+    ```
+    git clone https://github.com/NorthernMechatronics/nmsdk2
+    ```
+* change to the target platform of interest (ex: targets/nm180100):
+    ```
+    cd nmsdk2
+    cd targets/nm180100
+    ```
+* then enter the following command to build:
+    ```
+    make
+    ```
 ### Installation
-* clone the [NMSDK2](https://github.com/NorthernMechatronics/nmsdk2).
-* change to the target platform of interest (ex: targets/nm180100), then enter the following commands:
-    * make
-    * make install
+* Once the SDK is built, install the libraries with:
+    ```
+    make install
+    ```
+  This will copy all the libraries to the lib directory under the target directory.  In this example, it is under `/targets/nm180100/lib`
 
 ## Architecture
 
