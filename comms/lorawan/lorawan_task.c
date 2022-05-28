@@ -70,11 +70,9 @@ static LmHandlerCallbacks_t      lmh_callbacks;
 static LmhpFragmentationParams_t lmhp_fragmentation_parameters;
 static LmhpComplianceParams_t    lmhp_compliance_parameters;
 
-static volatile bool McSessionStarted = false;
-
 static void lorawan_task_handle_uplink()
 {
-    if (McSessionStarted)
+    if (LmhpRemoteMcastSessionStateStarted())
     {
         return;
     }
@@ -245,11 +243,6 @@ void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, 
     if (ui32Length > 0)
     {
         packet.pui8Data = pui8Data;
-        /*
-        uint8_t *payload = pvPortMalloc(ui32Length);
-        memcpy(payload, pui8Data, ui32Length);
-        packet.pui8Data = payload;
-        */
     }
     else
     {

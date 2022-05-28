@@ -19,6 +19,8 @@
  *
  * \author    Miguel Luis ( Semtech )
  */
+#include <string.h>
+
 #include "am_util.h"
 
 #include "LmHandler.h"
@@ -151,7 +153,7 @@ typedef struct McGroupData_s
 
 typedef enum eSessionState
 {
-    SESSION_STOPED,
+    SESSION_STOPPED,
     SESSION_STARTED
 }SessionState_t;
 
@@ -208,6 +210,8 @@ static void LmhpRemoteMcastSetupInit( void * params, uint8_t *dataBuffer, uint8_
         LmhpRemoteMcastSetupState.Initialized = true;
         TimerInit( &SessionStartTimer, OnSessionStartTimer );
         TimerInit( &SessionStopTimer, OnSessionStopTimer );
+
+        memset(McSessionData, 0, sizeof(McSessionData_t) * LORAMAC_MAX_MC_CTX);
     }
     else
     {
@@ -242,6 +246,7 @@ static void LmhpRemoteMcastSetupProcess( void )
             // Switch to Class C
             LmHandlerRequestClass( CLASS_C );
 
+            McSessionData[0].SessionState = SESSION_STARTED;
             uint32_t timeout = (1 << McSessionData[0].SessionTimeout);
 
             TimerSetValue( &SessionStopTimer, ( timeout ) * 1000 );
@@ -253,6 +258,8 @@ static void LmhpRemoteMcastSetupProcess( void )
         case REMOTE_MCAST_SETUP_SESSION_STATE_STOP:
             // Switch back to Class A
             LmHandlerRequestClass( CLASS_A );
+
+            McSessionData[0].SessionState = SESSION_STOPPED;
             LmhpRemoteMcastSetupState.SessionState = REMOTE_MCAST_SETUP_SESSION_STATE_IDLE;
             break;
         case REMOTE_MCAST_SETUP_SESSION_STATE_IDLE:
@@ -517,4 +524,16 @@ static void OnSessionStopTimer( void *context )
     TimerStop( &SessionStopTimer );
 
     LmhpRemoteMcastSetupState.SessionState = REMOTE_MCAST_SETUP_SESSION_STATE_STOP;
+}
+
+bool LmhpRemoteMcastSessionStateStarted()
+{
+    bool bResult = false;
+
+    for (int i = 0; i < LORAMAC_MAX_MC_CTX; i++)
+    {
+        bResult |= McSessionData[i].SessionState;
+    }
+
+    return bResult;
 }

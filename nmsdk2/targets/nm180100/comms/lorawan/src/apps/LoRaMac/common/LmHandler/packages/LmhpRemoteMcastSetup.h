@@ -49,6 +49,8 @@ extern "C" {
 
 LmhPackage_t *LmhpRemoteMcastSetupPackageFactory( void );
 
+bool LmhpRemoteMcastSessionStateStarted();
+
 #ifdef __cplusplus
 }
 #endif
