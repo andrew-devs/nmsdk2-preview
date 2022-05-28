@@ -42,6 +42,7 @@
 
 #include "ota_config.h"
 
+#include "lorawan.h"
 #include "lorawan_task.h"
 #include "lmhp_fragmentation.h"
 

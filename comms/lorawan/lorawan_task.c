@@ -72,28 +72,6 @@ static LmhpComplianceParams_t    lmhp_compliance_parameters;
 
 static volatile bool McSessionStarted = false;
 
-/*
- * Board ID is called by the LoRaWAN stack to
- * uniquely identify this device.
- * 
- * This example uses the processor ID
- */
-void BoardGetUniqueId(uint8_t *id)
-{
-    am_util_id_t i;
-
-    am_util_id_device(&i);
-
-    id[0] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID0);
-    id[1] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID0 >> 8);
-    id[2] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID0 >> 16);
-    id[3] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID0 >> 24);
-    id[4] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1);
-    id[5] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 8);
-    id[6] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 16);
-    id[7] = (uint8_t)(i.sMcuCtrlDevice.ui32ChipID1 >> 24);
-}
-
 static void lorawan_task_handle_uplink()
 {
     if (McSessionStarted)

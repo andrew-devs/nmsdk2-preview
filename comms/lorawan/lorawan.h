@@ -74,17 +74,21 @@ typedef struct
 
 extern void lorawan_send_command(lorawan_command_t *pCommand);
 
-extern void lorawan_set_device_eui(const char *pcDeviceEUI);
-extern void lorawan_get_device_eui(char *pcDeviceEUI);
+extern void lorawan_set_device_eui_by_str(const char *pcDeviceEUI);
+extern void lorawan_set_device_eui_by_bytes(const uint8_t *pui8DeviceEUI);
+extern void lorawan_get_device_eui(uint8_t *pui8DeviceEUI);
 
-extern void lorawan_set_app_eui(const char *pcAppEUI);
-extern void lorawan_get_app_eui(char *pcAppEUI);
+extern void lorawan_set_app_eui_by_str(const char *pcAppEUI);
+extern void lorawan_set_app_eui_by_bytes(const uint8_t *pui8AppEUI);
+extern void lorawan_get_app_eui(uint8_t *pui8AppEUI);
 
-extern void lorawan_set_app_key(const char *pcAppKey);
-extern void lorawan_get_app_key(char *pcAppKey);
+extern void lorawan_set_app_key_by_str(const char *pcAppKey);
+extern void lorawan_set_app_key_by_bytes(const uint8_t *pui8AppKey);
+extern void lorawan_get_app_key(uint8_t *pui8AppKey);
 
-extern void lorawan_set_nwk_key(const char *pcNwkKey);
-extern void lorawan_get_nwk_key(char *pcNwkKey);
+extern void lorawan_set_nwk_key_by_str(const char *pcNwkKey);
+extern void lorawan_set_nwk_key_by_bytes(const uint8_t *pui8NwkKey);
+extern void lorawan_get_nwk_key(uint8_t *pui8NwkKey);
 
 extern void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *pui8Data);
 extern void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t pHandle);

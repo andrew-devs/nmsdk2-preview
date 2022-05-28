@@ -86,7 +86,6 @@ VPATH += ./comms/lorawan
 
 SRC += aes.c
 SRC += cmac.c
-SRC += soft-se-hal.c
 SRC += soft-se.c
 SRC += lmh_callbacks.c
 SRC += lmhp_fragmentation.c

@@ -33,41 +33,166 @@
 
 #include "lorawan.h"
 
-void lorawan_set_device_eui(const char *pcDeviceEUI)
+SecureElementNvmData_t lorawan_se = {
+    .DevEui = { 0 },
+    .JoinEui = { 0 },
+    .Pin = { 0 },
+    .KeyList = {
+        { .KeyID = APP_KEY, .KeyValue = { 0 }},
+        { .KeyID = NWK_KEY, .KeyValue = { 0 }},
+        { .KeyID = J_S_INT_KEY, .KeyValue = { 0 }},
+        { .KeyID = J_S_ENC_KEY, .KeyValue = { 0 }},
+        { .KeyID = F_NWK_S_INT_KEY, .KeyValue = { 0 }},
+        { .KeyID = S_NWK_S_INT_KEY, .KeyValue = { 0 }},
+        { .KeyID = NWK_S_ENC_KEY, .KeyValue = { 0 }},
+        { .KeyID = APP_S_KEY, .KeyValue = { 0 }},
+        { .KeyID = MC_ROOT_KEY, .KeyValue = { 0 }},
+        { .KeyID = MC_KE_KEY, .KeyValue = { 0 }},
+        { .KeyID = MC_KEY_0, .KeyValue = { 0 }},
+        { .KeyID = MC_APP_S_KEY_0, .KeyValue = { 0 }},
+        { .KeyID = MC_NWK_S_KEY_0, .KeyValue = { 0 }},
+        { .KeyID = MC_KEY_1, .KeyValue = { 0 }},
+        { .KeyID = MC_APP_S_KEY_1, .KeyValue = { 0 }},
+        { .KeyID = MC_NWK_S_KEY_1, .KeyValue = { 0 }},
+        { .KeyID = MC_KEY_2, .KeyValue = { 0 }},
+        { .KeyID = MC_APP_S_KEY_2, .KeyValue = { 0 }},
+        { .KeyID = MC_NWK_S_KEY_2, .KeyValue = { 0 }},
+        { .KeyID = MC_KEY_3, .KeyValue = { 0 }},
+        { .KeyID = MC_APP_S_KEY_3, .KeyValue = { 0 }},
+        { .KeyID = MC_NWK_S_KEY_3, .KeyValue = { 0 }},
+        { .KeyID = SLOT_RAND_ZERO_KEY, .KeyValue = { 0 }},
+    }
+};
+
+uint8_t hex_char(const char ch)
 {
+    if ('0' <= ch && ch <= '9')
+        return (uint8_t)(ch - '0');
+
+    if ('a' <= ch && ch <= 'f')
+        return (uint8_t)(ch - 'a' + 10);
+
+    if ('A' <= ch && ch <= 'F')
+        return (uint8_t)(ch - 'A' + 10);
+
+    return 255;
 }
 
-void lorawan_get_device_eui(char *pcDeviceEUI)
+void hex_to_bin(const char *str, uint8_t *array)
 {
+    while (*str)
+    {
+        uint8_t n1 = hex_char(*str++);
+        uint8_t n2 = hex_char(*str++);
+    
+        if ((n1 == 255) || (n2 == 255))
+        {
+            return;
+        }
 
+        *array++ = (n1 << 4) + n2;
+    }
 }
 
-void lorawan_set_app_eui(const char *pcAppEUI)
+void lorawan_set_device_eui_by_str(const char *pcDeviceEUI)
 {
-
+    hex_to_bin(pcDeviceEUI, lorawan_se.DevEui);
 }
 
-void lorawan_get_app_eui(char *pcAppEUI)
+void lorawan_set_device_eui_by_bytes(const uint8_t *pui8DeviceEUI)
 {
-
+    memcpy(lorawan_se.DevEui, pui8DeviceEUI, SE_EUI_SIZE);
 }
 
-void lorawan_set_app_key(const char *pcAppKey)
+void lorawan_get_device_eui(uint8_t *pui8DeviceEUI)
 {
-
+    memcpy(pui8DeviceEUI, lorawan_se.DevEui, SE_EUI_SIZE);
 }
 
-void lorawan_get_app_key(char *pcAppKey)
+void lorawan_set_app_eui_by_str(const char *pcAppEUI)
 {
-
+    hex_to_bin(pcAppEUI, lorawan_se.JoinEui);
 }
 
-void lorawan_set_nwk_key(const char *pcNwkKey)
+void lorawan_set_app_eui_by_bytes(const uint8_t *pui8AppEUI)
 {
-
+    memcpy(lorawan_se.JoinEui, pui8AppEUI, SE_EUI_SIZE);
 }
 
-void lorawan_get_nwk_key(char *pcNwkKey)
+void lorawan_get_app_eui(uint8_t *pui8AppEUI)
 {
+    memcpy(pui8AppEUI, lorawan_se.JoinEui, SE_EUI_SIZE);
+}
 
+void lorawan_set_app_key_by_str(const char *pcAppKey)
+{
+    for (int i = 0; i < NUM_OF_KEYS; i++)
+    {
+        if (lorawan_se.KeyList[i].KeyID == APP_KEY)
+        {
+            hex_to_bin(pcAppKey, lorawan_se.KeyList[i].KeyValue);
+            return;
+        }
+    }
+}
+
+void lorawan_set_app_key_by_bytes(const uint8_t *pui8AppKey)
+{
+    for (int i = 0; i < NUM_OF_KEYS; i++)
+    {
+        if (lorawan_se.KeyList[i].KeyID == APP_KEY)
+        {
+            memcpy(lorawan_se.KeyList[i].KeyValue, pui8AppKey, SE_KEY_SIZE);
+            return;
+        }
+    }
+}
+
+void lorawan_get_app_key(uint8_t *pui8AppKey)
+{
+    for (int i = 0; i < NUM_OF_KEYS; i++)
+    {
+        if (lorawan_se.KeyList[i].KeyID == APP_KEY)
+        {
+            memcpy(pui8AppKey, lorawan_se.KeyList[i].KeyValue, SE_KEY_SIZE);
+            return;
+        }
+    }
+}
+
+void lorawan_set_nwk_key_by_str(const char *pcNwkKey)
+{
+    for (int i = 0; i < NUM_OF_KEYS; i++)
+    {
+        if (lorawan_se.KeyList[i].KeyID == NWK_KEY)
+        {
+            hex_to_bin(pcNwkKey, lorawan_se.KeyList[i].KeyValue);
+            return;
+        }
+    }
+}
+
+void lorawan_set_nwk_key_by_bytes(const uint8_t *pui8NwkKey)
+{
+    for (int i = 0; i < NUM_OF_KEYS; i++)
+    {
+        if (lorawan_se.KeyList[i].KeyID == NWK_KEY)
+        {
+            memcpy(lorawan_se.KeyList[i].KeyValue, pui8NwkKey, SE_KEY_SIZE);
+            return;
+        }
+    }
+}
+
+
+void lorawan_get_nwk_key(uint8_t *pui8NwkKey)
+{
+    for (int i = 0; i < NUM_OF_KEYS; i++)
+    {
+        if (lorawan_se.KeyList[i].KeyID == NWK_KEY)
+        {
+            memcpy(pui8NwkKey, lorawan_se.KeyList[i].KeyValue, SE_KEY_SIZE);
+            return;
+        }
+    }
 }

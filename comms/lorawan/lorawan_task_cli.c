@@ -71,6 +71,16 @@ static uint8_t lorawan_cli_transmit_buffer[LM_BUFFER_SIZE];
 
 static TimerHandle_t periodic_transmit_timer = NULL;
 
+static void print_hex_array(char *pui8OutBuffer, uint8_t *array, uint32_t length)
+{
+    char byte[4];
+    for (int i = 0; i < length; i++)
+    {
+        am_util_stdio_sprintf(byte, "%02X ", array[i]);
+        strcat(pui8OutBuffer, byte);
+    }
+}
+
 static void periodic_transmit_callback(TimerHandle_t handle)
 {
     uint32_t ui32Count = (uint32_t)pvTimerGetTimerID(handle);
@@ -133,6 +143,7 @@ static void lorawan_task_cli_help(char *pui8OutBuffer, size_t argc, char **argv)
     strcat(pui8OutBuffer, "  clear    reformat eeprom\r\n");
     strcat(pui8OutBuffer, "  datetime get/set/sync time\r\n");
     strcat(pui8OutBuffer, "  join\r\n");
+    strcat(pui8OutBuffer, "  keys\r\n");
     strcat(pui8OutBuffer, "  periodic\r\n");
     strcat(pui8OutBuffer, "  send\r\n");
 }
@@ -233,6 +244,39 @@ static void lorawan_task_cli_datetime(char *pui8OutBuffer, size_t argc, char **a
             lorawan_send_command(&command);
         }
     }
+}
+
+static void lorawan_task_cli_keys(char *pui8OutBuffer, size_t argc, char **argv)
+{
+    uint8_t dev_eui[SE_EUI_SIZE];
+    uint8_t app_eui[SE_EUI_SIZE];
+    uint8_t app_key[SE_KEY_SIZE];
+    uint8_t nwk_key[SE_KEY_SIZE];
+
+    lorawan_get_device_eui(dev_eui);
+    lorawan_get_app_eui(app_eui);
+    lorawan_get_app_key(app_key);
+    lorawan_get_nwk_key(nwk_key);
+
+    strcat(pui8OutBuffer, "\n\r");
+
+    strcat(pui8OutBuffer, "Device EUI  : ");
+    print_hex_array(pui8OutBuffer, dev_eui, SE_EUI_SIZE);
+    strcat(pui8OutBuffer, "\n\r");
+
+    strcat(pui8OutBuffer, "App EUI     : ");
+    print_hex_array(pui8OutBuffer, app_eui, SE_EUI_SIZE);
+    strcat(pui8OutBuffer, "\n\r");
+
+    strcat(pui8OutBuffer, "App Key     : ");
+    print_hex_array(pui8OutBuffer, app_key, SE_KEY_SIZE);
+    strcat(pui8OutBuffer, "\n\r");
+
+    strcat(pui8OutBuffer, "Network Key : ");
+    print_hex_array(pui8OutBuffer, nwk_key, SE_KEY_SIZE);
+    strcat(pui8OutBuffer, "\n\r");
+
+    strcat(pui8OutBuffer, "\n\r");
 }
 
 static void lorawan_task_cli_periodic(char *pui8OutBuffer, size_t argc, char **argv)
@@ -340,6 +384,10 @@ static portBASE_TYPE lorawan_task_cli_entry(
         lorawan_command_t command;
         command.eCommand = LORAWAN_JOIN;
         lorawan_send_command(&command);
+    }
+    else if (strcmp(argv[1], "keys") == 0)
+    {
+        lorawan_task_cli_keys(pui8OutBuffer, argc, argv);
     }
     else if (strcmp(argv[1], "periodic") == 0)
     {

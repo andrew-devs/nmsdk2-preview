@@ -41,6 +41,8 @@
 #include <FreeRTOS.h>
 #include <task.h>
 
+#include "lorawan.h"
+
 #include "application_task.h"
 #include "lorawan_task.h"
 #include "console_task.h"
@@ -148,6 +150,10 @@ void system_setup(void)
     NVIC_SetPriority(STIMER_CMPR3_IRQn, NVIC_configKERNEL_INTERRUPT_PRIORITY);
 
     am_hal_interrupt_master_enable();
+
+    lorawan_set_app_eui_by_str("b4c231a359bc2e3d");
+    lorawan_set_app_key_by_str("01c3f004a2d6efffe32c4eda14bcd2b4");
+    lorawan_set_nwk_key_by_str("3f4ca100e2fc675ea123f4eb12c4a012");
 }
 
 void system_start(void)
