@@ -40,17 +40,19 @@
 
 #include "application_task_cli.h"
 
-static portBASE_TYPE application_task_cli_entry(
-    char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command);
+static portBASE_TYPE application_task_cli_entry(char *pui8OutBuffer,
+                                                size_t ui32OutBufferLength,
+                                                const char *pui8Command);
 
 static CLI_Command_Definition_t application_task_cli_definition = {
     (const char *const) "app",
     (const char *const) "app    :  Application Commands.\r\n",
-    application_task_cli_entry, -1};
+    application_task_cli_entry,
+    -1};
 
 static size_t argc;
 static char *argv[8];
-static char  argz[128];
+static char argz[128];
 
 void application_task_cli_register()
 {
@@ -66,8 +68,8 @@ static void help(char *pui8OutBuffer, size_t argc, char **argv)
     strcat(pui8OutBuffer, "  reset\r\n");
 }
 
-portBASE_TYPE application_task_cli_entry(
-    char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command)
+portBASE_TYPE
+application_task_cli_entry(char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command)
 {
     pui8OutBuffer[0] = 0;
 

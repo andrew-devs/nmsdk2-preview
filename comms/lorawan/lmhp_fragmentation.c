@@ -42,26 +42,21 @@
 
 #include "ota_config.h"
 
+#include "lmhp_fragmentation.h"
 #include "lorawan.h"
 #include "lorawan_task.h"
-#include "lmhp_fragmentation.h"
 
-#define AUTH_REQ_BUFFER_SIZE    (5)
+#define AUTH_REQ_BUFFER_SIZE (5)
 static uint8_t auth_req_buffer[AUTH_REQ_BUFFER_SIZE];
 
-static void on_frag_progress(uint16_t counter, uint16_t blocks, uint8_t size,
-                           uint16_t lost)
+static void on_frag_progress(uint16_t counter, uint16_t blocks, uint8_t size, uint16_t lost)
 {
-    am_util_stdio_printf(
-        "\r\n###### =========== FRAG_DECODER ============ ######\r\n");
-    am_util_stdio_printf(
-        "######               PROGRESS                ######\r\n");
-    am_util_stdio_printf(
-        "###### ===================================== ######\r\n");
-    am_util_stdio_printf("RECEIVED    : %5d / %5d Fragments\r\n", counter,
-                         blocks);
-    am_util_stdio_printf("              %5d / %5d Bytes\r\n", counter * size,
-                         blocks * size);
+    am_util_stdio_printf("\r\n");
+    am_util_stdio_printf("###### =========== FRAG_DECODER ============ ######\r\n");
+    am_util_stdio_printf("######               PROGRESS                ######\r\n");
+    am_util_stdio_printf("###### ===================================== ######\r\n");
+    am_util_stdio_printf("RECEIVED    : %5d / %5d Fragments\r\n", counter, blocks);
+    am_util_stdio_printf("              %5d / %5d Bytes\r\n", counter * size, blocks * size);
     am_util_stdio_printf("LOST        :       %7d Fragments\r\n\r\n", lost);
 }
 
@@ -76,18 +71,12 @@ static void on_frag_done(int32_t status, uint32_t size)
     auth_req_buffer[4] = (rx_crc >> 24) & 0x000000FF;
 
     lorawan_transmit(
-        FRAGMENTATION_PORT,
-        LORAMAC_HANDLER_UNCONFIRMED_MSG,
-        AUTH_REQ_BUFFER_SIZE,
-        auth_req_buffer);
+        FRAGMENTATION_PORT, LORAMAC_HANDLER_UNCONFIRMED_MSG, AUTH_REQ_BUFFER_SIZE, auth_req_buffer);
 
     am_util_stdio_printf("\r\n");
-    am_util_stdio_printf(
-        "###### =========== FRAG_DECODER ============ ######\r\n");
-    am_util_stdio_printf(
-        "######               FINISHED                ######\r\n");
-    am_util_stdio_printf(
-        "###### ===================================== ######\r\n");
+    am_util_stdio_printf("###### =========== FRAG_DECODER ============ ######\r\n");
+    am_util_stdio_printf("######               FINISHED                ######\r\n");
+    am_util_stdio_printf("###### ===================================== ######\r\n");
     am_util_stdio_printf("STATUS : %ld\r\n", status);
     am_util_stdio_printf("SIZE   : %ld\r\n", size);
     am_util_stdio_printf("CRC    : %08lX\n\n", rx_crc);
@@ -99,14 +88,13 @@ static int8_t frag_decoder_write(uint32_t offset, uint8_t *data, uint32_t size)
     uint32_t source[64];
     uint32_t length = size >> 2;
 
-    am_util_stdio_printf("\r\nDecoder Write: 0x%x, 0x%x, %d\r\n",
-                         (uint32_t)destination, (uint32_t)source, length);
+    am_util_stdio_printf(
+        "\r\nDecoder Write: 0x%x, 0x%x, %d\r\n", (uint32_t)destination, (uint32_t)source, length);
     memcpy(source, data, size);
 
     taskENTER_CRITICAL();
 
-    am_hal_flash_program_main(AM_HAL_FLASH_PROGRAM_KEY, source, destination,
-                              length);
+    am_hal_flash_program_main(AM_HAL_FLASH_PROGRAM_KEY, source, destination, length);
 
     taskEXIT_CRITICAL();
     return 0;
@@ -127,8 +115,7 @@ static int8_t frag_decoder_erase(uint32_t offset, uint32_t size)
     uint32_t totalPage = (size >> 13) + 1;
     uint32_t address = OTA_FLASH_ADDRESS;
 
-    am_util_stdio_printf("\r\nErasing %d pages at 0x%x\r\n", totalPage,
-                         address);
+    am_util_stdio_printf("\r\nErasing %d pages at 0x%x\r\n", totalPage, address);
 
     for (int i = 0; i < totalPage; i++)
     {

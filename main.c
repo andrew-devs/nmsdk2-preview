@@ -44,8 +44,8 @@
 #include "lorawan.h"
 
 #include "application_task.h"
-#include "lorawan_task.h"
 #include "console_task.h"
+#include "lorawan_task.h"
 
 //*****************************************************************************
 //
@@ -103,7 +103,8 @@ void vApplicationMallocFailedHook(void)
     // timers, and semaphores.  The size of the FreeRTOS heap is set by the
     // configTOTAL_HEAP_SIZE configuration constant in FreeRTOSConfig.h.
     //
-    while (1) {
+    while (1)
+    {
         __asm("BKPT #0\n"); // Break into the debugger
     }
 }
@@ -118,7 +119,8 @@ void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName)
     // configconfigCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
     // function is called if a stack overflow is detected.
     //
-    while (1) {
+    while (1)
+    {
         __asm("BKPT #0\n"); // Break into the debugger
     }
 }
@@ -172,7 +174,8 @@ int main(void)
     system_setup();
     system_start();
 
-    while (1) {
+    while (1)
+    {
     }
 
     return 0;

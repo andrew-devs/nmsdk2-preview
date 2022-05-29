@@ -43,30 +43,31 @@
 #include <queue.h>
 #include <timers.h>
 
-#include <LoRaMacTypes.h>
 #include <LmHandler.h>
+#include <LoRaMacTypes.h>
 
 #include <eeprom_emulation.h>
 #include <lorawan_eeprom_config.h>
 
 #include "lorawan_config.h"
 
+#include "console_task.h"
 #include "lorawan.h"
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
-#include "console_task.h"
 
-static portBASE_TYPE lorawan_task_cli_entry(
-    char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command);
+static portBASE_TYPE
+lorawan_task_cli_entry(char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command);
 
 CLI_Command_Definition_t lorawan_task_cli_definition = {
     (const char *const) "lorawan",
     (const char *const) "lorawan:  LoRaWAN Application Layer Commands.\r\n",
-    lorawan_task_cli_entry, -1};
+    lorawan_task_cli_entry,
+    -1};
 
 static size_t argc;
 static char *argv[8];
-static char  argz[128];
+static char argz[128];
 
 #define LM_BUFFER_SIZE 242
 static uint8_t lorawan_cli_transmit_buffer[LM_BUFFER_SIZE];
@@ -92,10 +93,8 @@ static void periodic_transmit_callback(TimerHandle_t handle)
     am_util_stdio_sprintf((char *)lorawan_cli_transmit_buffer, "%d", ui32Count);
     uint32_t length = strlen((char *)lorawan_cli_transmit_buffer);
 
-    lorawan_transmit(LORAWAN_DEFAULT_PORT,
-        LORAMAC_HANDLER_UNCONFIRMED_MSG,
-        length,
-        lorawan_cli_transmit_buffer);
+    lorawan_transmit(
+        LORAWAN_DEFAULT_PORT, LORAMAC_HANDLER_UNCONFIRMED_MSG, length, lorawan_cli_transmit_buffer);
 }
 
 void lorawan_task_cli_register()
@@ -104,8 +103,7 @@ void lorawan_task_cli_register()
     argc = 0;
 }
 
-static void convert_hex_string(const char *in, size_t inlen, uint8_t *out,
-                             size_t *outlen)
+static void convert_hex_string(const char *in, size_t inlen, uint8_t *out, size_t *outlen)
 {
     size_t n = 0;
     char cNum[3];
@@ -161,7 +159,7 @@ static void lorawan_task_cli_class(char *pui8OutBuffer, size_t argc, char **argv
             am_util_stdio_sprintf(pui8OutBuffer, "\n\rCurrent Class: ");
 
             cls = LmHandlerGetCurrentClass();
-            switch(cls)
+            switch (cls)
             {
             case CLASS_A:
                 strcat(pui8OutBuffer, "A");
@@ -180,7 +178,7 @@ static void lorawan_task_cli_class(char *pui8OutBuffer, size_t argc, char **argv
     {
         if (strcmp(argv[2], "set") == 0)
         {
-            switch(argv[3][0])
+            switch (argv[3][0])
             {
             case 'a':
             case 'A':
@@ -308,23 +306,19 @@ static void lorawan_task_cli_periodic(char *pui8OutBuffer, size_t argc, char **a
         {
             ui32Period = atoi(argv[3]);
         }
-            
+
         if (periodic_transmit_timer == NULL)
         {
-            periodic_transmit_timer = xTimerCreate(
-                "lorawan periodic",
-                pdMS_TO_TICKS(ui32Period * 1000),
-                pdTRUE,
-                (void *)0,
-                periodic_transmit_callback
-            );
+            periodic_transmit_timer = xTimerCreate("lorawan periodic",
+                                                   pdMS_TO_TICKS(ui32Period * 1000),
+                                                   pdTRUE,
+                                                   (void *)0,
+                                                   periodic_transmit_callback);
             xTimerStart(periodic_transmit_timer, portMAX_DELAY);
         }
         else
         {
-            xTimerChangePeriod(periodic_transmit_timer,
-                pdMS_TO_TICKS(ui32Period),
-                portMAX_DELAY);
+            xTimerChangePeriod(periodic_transmit_timer, pdMS_TO_TICKS(ui32Period), portMAX_DELAY);
         }
     }
 }
@@ -332,22 +326,17 @@ static void lorawan_task_cli_periodic(char *pui8OutBuffer, size_t argc, char **a
 static void lorawan_task_cli_send(char *pui8OutBuffer, size_t argc, char **argv)
 {
     uint32_t port = LORAWAN_DEFAULT_PORT;
-    uint32_t ack  = LORAMAC_HANDLER_UNCONFIRMED_MSG;
+    uint32_t ack = LORAMAC_HANDLER_UNCONFIRMED_MSG;
 
     size_t length;
     convert_hex_string(
-        argv[argc - 1],
-        strlen(argv[argc - 1]),
-        lorawan_cli_transmit_buffer,
-        &length);
+        argv[argc - 1], strlen(argv[argc - 1]), lorawan_cli_transmit_buffer, &length);
     lorawan_cli_transmit_buffer[length] = 0;
 
     if (argc == 5)
     {
         port = atoi(argv[2]);
-        ack  = atoi(argv[3]) ?
-            LORAMAC_HANDLER_CONFIRMED_MSG : 
-            LORAMAC_HANDLER_UNCONFIRMED_MSG;
+        ack = atoi(argv[3]) ? LORAMAC_HANDLER_CONFIRMED_MSG : LORAMAC_HANDLER_UNCONFIRMED_MSG;
     }
     else if (argc == 4)
     {
@@ -357,8 +346,8 @@ static void lorawan_task_cli_send(char *pui8OutBuffer, size_t argc, char **argv)
     lorawan_transmit(port, ack, length, lorawan_cli_transmit_buffer);
 }
 
-static portBASE_TYPE lorawan_task_cli_entry(
-    char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command)
+static portBASE_TYPE
+lorawan_task_cli_entry(char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command)
 {
     pui8OutBuffer[0] = 0;
 

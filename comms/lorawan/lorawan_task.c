@@ -54,10 +54,10 @@
 #include "lorawan.h"
 #include "lorawan_config.h"
 
-#include "lorawan_task.h"
-#include "lorawan_task_cli.h"
 #include "lmh_callbacks.h"
 #include "lmhp_fragmentation.h"
+#include "lorawan_task.h"
+#include "lorawan_task_cli.h"
 
 static TaskHandle_t lorawan_task_handle;
 static QueueHandle_t lorawan_task_command_queue;
@@ -66,10 +66,10 @@ static QueueHandle_t lorawan_task_transmit_queue;
 #define LM_BUFFER_SIZE 242
 static uint8_t psLmDataBuffer[LM_BUFFER_SIZE];
 
-static LmHandlerParams_t         lmh_parameters;
-static LmHandlerCallbacks_t      lmh_callbacks;
+static LmHandlerParams_t lmh_parameters;
+static LmHandlerCallbacks_t lmh_callbacks;
 static LmhpFragmentationParams_t lmhp_fragmentation_parameters;
-static LmhpComplianceParams_t    lmhp_compliance_parameters;
+static LmhpComplianceParams_t lmhp_compliance_parameters;
 
 static void lorawan_task_handle_uplink()
 {
@@ -208,11 +208,7 @@ static void lorawan_task(void *pvParameters)
 
 void lorawan_task_create(uint32_t ui32Priority)
 {
-    xTaskCreate(
-        lorawan_task,
-        "lorawan",
-        512, 0, ui32Priority,
-        &lorawan_task_handle);
+    xTaskCreate(lorawan_task, "lorawan", 512, 0, ui32Priority, &lorawan_task_handle);
 
     lorawan_task_command_queue = xQueueCreate(8, sizeof(lorawan_command_t));
     lorawan_task_transmit_queue = xQueueCreate(8, sizeof(lorawan_tx_packet_t));
@@ -238,8 +234,8 @@ void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, 
 {
     lorawan_tx_packet_t packet;
 
-    packet.tType      = ui32Ack ? LORAMAC_HANDLER_CONFIRMED_MSG : LORAMAC_HANDLER_UNCONFIRMED_MSG;
-    packet.ui32Port   = ui32Port;
+    packet.tType = ui32Ack ? LORAMAC_HANDLER_CONFIRMED_MSG : LORAMAC_HANDLER_UNCONFIRMED_MSG;
+    packet.ui32Port = ui32Port;
     packet.ui32Length = ui32Length;
 
     if (ui32Length > 0)

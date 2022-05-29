@@ -43,11 +43,7 @@ static void application_task(void *parameter);
 
 void application_task_create(uint32_t priority)
 {
-    xTaskCreate(
-        application_task,
-        "application",
-        512, 0, priority,
-        &application_task_handle);
+    xTaskCreate(application_task, "application", 512, 0, priority, &application_task_handle);
 }
 
 void application_task(void *parameter)

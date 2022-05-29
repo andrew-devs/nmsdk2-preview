@@ -39,10 +39,10 @@
 
 #include "lorawan_config.h"
 
+#include "console_task.h"
+#include "lmh_callbacks.h"
 #include "lorawan.h"
 #include "lorawan_task.h"
-#include "lmh_callbacks.h"
-#include "console_task.h"
 
 static List_t lorawan_receive_callback_list;
 
@@ -73,8 +73,8 @@ static void lmh_on_network_parameters_change(CommissioningParams_t *params)
     lorawan_task_wake();
 }
 
-static void lmh_on_mac_mcps_request(LoRaMacStatus_t status, McpsReq_t *mcpsReq,
-                             TimerTime_t nextTxDelay)
+static void
+lmh_on_mac_mcps_request(LoRaMacStatus_t status, McpsReq_t *mcpsReq, TimerTime_t nextTxDelay)
 {
     am_util_stdio_printf("\r\n");
     DisplayMacMcpsRequestUpdate(status, mcpsReq, nextTxDelay);
@@ -85,8 +85,8 @@ static void lmh_on_mac_mcps_request(LoRaMacStatus_t status, McpsReq_t *mcpsReq,
     lorawan_task_wake();
 }
 
-static void lmh_on_mac_mlme_request(LoRaMacStatus_t status, MlmeReq_t *mlmeReq,
-                             TimerTime_t nextTxDelay)
+static void
+lmh_on_mac_mlme_request(LoRaMacStatus_t status, MlmeReq_t *mlmeReq, TimerTime_t nextTxDelay)
 {
     am_util_stdio_printf("\r\n");
     DisplayMacMlmeRequestUpdate(status, mlmeReq, nextTxDelay);
@@ -105,7 +105,7 @@ static void lmh_on_join_request(LmHandlerJoinParams_t *params)
     {
         am_util_stdio_printf("\r\n");
         DisplayJoinRequestUpdate(params);
-        
+
         LmHandlerRequestClass(LORAWAN_DEFAULT_CLASS);
         LmHandlerDeviceTimeReq();
     }
@@ -197,8 +197,7 @@ void lorawan_receive_unregister(uint32_t ui32Port, QueueHandle_t pHandle)
 
     while (pItem != listGET_END_MARKER(&lorawan_receive_callback_list))
     {
-        if ((pItem->pvOwner == pHandle) &&
-            (pItem->xItemValue == ui32Port))
+        if ((pItem->pvOwner == pHandle) && (pItem->xItemValue == ui32Port))
         {
             listREMOVE_ITEM(pItem);
             return;

@@ -46,32 +46,32 @@
 #define MAX_CMD_HIST_LEN (8)
 #define MAX_INPUT_LEN    (128)
 
-#define STREAM_BUFFER_SIZE  64
+#define STREAM_BUFFER_SIZE 64
 
 static volatile StreamBufferHandle_t stream_buffer;
 
 static uint8_t uart_buffer[32];
 static am_hal_uart_transfer_t uart_transfer = {
-    .ui32Direction         = AM_HAL_UART_READ,
-    .pui8Data              = uart_buffer,
-    .ui32NumBytes          = 32,
-    .ui32TimeoutMs         = 0,
+    .ui32Direction = AM_HAL_UART_READ,
+    .pui8Data = uart_buffer,
+    .ui32NumBytes = 32,
+    .ui32TimeoutMs = 0,
     .pui32BytesTransferred = 0,
 };
 
-static char    cmd_buffer[MAX_INPUT_LEN];
+static char cmd_buffer[MAX_INPUT_LEN];
 static uint8_t cmd_size = 0;
 
-static const char cmd_prompt[]  = "> ";
+static const char cmd_prompt[] = "> ";
 static const char welcome_msg[] = "\r\n"
-                                 "Northern Mechatronics\r\n\r\n"
-                                 "NM180100 Command Console\r\n";
+                                  "Northern Mechatronics\r\n\r\n"
+                                  "NM180100 Command Console\r\n";
 
-static char    cmd_hist[MAX_CMD_HIST_LEN][MAX_INPUT_LEN];
-static uint8_t cmd_hist_len   = 0;
+static char cmd_hist[MAX_CMD_HIST_LEN][MAX_INPUT_LEN];
+static uint8_t cmd_hist_len = 0;
 static uint8_t cmd_hist_first = 0;
-static uint8_t cmd_hist_last  = 0;
-static uint8_t cmd_hist_cur   = 0;
+static uint8_t cmd_hist_last = 0;
+static uint8_t cmd_hist_cur = 0;
 
 static const char crlf[] = "\r\n";
 
@@ -83,18 +83,22 @@ static void console_cmd_hist_add(const char *cmd, size_t len)
 {
     uint8_t next;
 
-    if (cmd_hist_len < MAX_CMD_HIST_LEN) {
+    if (cmd_hist_len < MAX_CMD_HIST_LEN)
+    {
         next = cmd_hist_len;
         cmd_hist_len++;
-    } else {
+    }
+    else
+    {
         next = (cmd_hist_last + 1) % MAX_CMD_HIST_LEN;
     }
     strncpy(cmd_hist[next], cmd, len);
     cmd_hist[next][len] = '\x0';
     cmd_hist_last = next;
-    cmd_hist_cur  = next;
+    cmd_hist_cur = next;
     // wrap-around
-    if (cmd_hist_last == cmd_hist_first && cmd_hist_len == MAX_CMD_HIST_LEN) {
+    if (cmd_hist_last == cmd_hist_first && cmd_hist_len == MAX_CMD_HIST_LEN)
+    {
         cmd_hist_first = (cmd_hist_first + 1) % MAX_CMD_HIST_LEN;
     }
 }
@@ -104,13 +108,17 @@ static const char *console_cmd_hist_prev(void)
     const char *cmd;
 
     // Empty history buffer
-    if (cmd_hist_len == 0) {
+    if (cmd_hist_len == 0)
+    {
         return NULL;
     }
 
-    if (cmd_hist_cur == cmd_hist_len) {
+    if (cmd_hist_cur == cmd_hist_len)
+    {
         cmd = NULL;
-    } else {
+    }
+    else
+    {
         cmd = cmd_hist[cmd_hist_cur];
     }
     cmd_hist_cur = (cmd_hist_cur + cmd_hist_len) % (cmd_hist_len + 1);
@@ -121,12 +129,14 @@ static const char *console_cmd_hist_prev(void)
 static const char *console_cmd_hist_next(void)
 {
     // Empty history buffer
-    if (cmd_hist_len == 0) {
+    if (cmd_hist_len == 0)
+    {
         return NULL;
     }
 
     cmd_hist_cur = (cmd_hist_cur + 1) % (cmd_hist_len + 1);
-    if (cmd_hist_cur == cmd_hist_len) {
+    if (cmd_hist_cur == cmd_hist_len)
+    {
         return NULL;
     }
 
@@ -135,7 +145,8 @@ static const char *console_cmd_hist_next(void)
 
 static void console_clear_line(uint8_t pos)
 {
-    if (pos > 0) {
+    if (pos > 0)
+    {
         // ANSI escape code CUB
         am_util_stdio_printf("\e[%dD\e[0K", pos);
     }
@@ -145,7 +156,7 @@ static char console_read()
 {
     uint8_t ch;
 
-    xStreamBufferReceive(stream_buffer, &ch, 1, portMAX_DELAY );
+    xStreamBufferReceive(stream_buffer, &ch, 1, portMAX_DELAY);
 
     return ch;
 }
@@ -154,19 +165,17 @@ static void console_task_setup(void)
 {
     am_bsp_buffered_uart_printf_enable();
     NVIC_SetPriority((IRQn_Type)(UART0_IRQn + AM_BSP_UART_PRINT_INST),
-                    NVIC_configKERNEL_INTERRUPT_PRIORITY);
+                     NVIC_configKERNEL_INTERRUPT_PRIORITY);
 
     memset(cmd_hist, 0, MAX_CMD_HIST_LEN * MAX_INPUT_LEN);
 
-    stream_buffer = xStreamBufferCreate (
-            STREAM_BUFFER_SIZE,
-            1);
+    stream_buffer = xStreamBufferCreate(STREAM_BUFFER_SIZE, 1);
 }
 
 static void console_task(void *parameter)
 {
-    char          ch;
-    char *        out_str;
+    char ch;
+    char *out_str;
     portBASE_TYPE ret;
 
     out_str = FreeRTOS_CLIGetOutputBuffer();
@@ -174,39 +183,48 @@ static void console_task(void *parameter)
     console_task_setup();
 
     am_util_stdio_printf(welcome_msg);
-//    am_util_stdio_printf("Built on: ");
-//    am_util_stdio_printf(get_build_timestamp());
     am_util_stdio_printf(crlf);
     am_util_stdio_printf(crlf);
     console_print_prompt();
 
-    while (1) {
+    while (1)
+    {
         ch = console_read();
 
-        switch ((uint8_t)ch) {
+        switch ((uint8_t)ch)
+        {
         case '\e':
             ch = console_read();
             ch = console_read();
-            if (ch == 'A') {
+            if (ch == 'A')
+            {
                 const char *cmd = console_cmd_hist_prev();
 
                 console_clear_line(cmd_size);
-                if (cmd != NULL) {
+                if (cmd != NULL)
+                {
                     strcpy(cmd_buffer, cmd);
                     am_util_stdio_printf(cmd_buffer);
                     cmd_size = strlen(cmd_buffer);
-                } else {
+                }
+                else
+                {
                     cmd_size = 0;
                 }
-            } else if (ch == 'B') {
+            }
+            else if (ch == 'B')
+            {
                 const char *cmd = console_cmd_hist_next();
 
                 console_clear_line(cmd_size);
-                if (cmd != NULL) {
+                if (cmd != NULL)
+                {
                     strcpy(cmd_buffer, cmd);
                     am_util_stdio_printf(cmd_buffer);
                     cmd_size = strlen(cmd_buffer);
-                } else {
+                }
+                else
+                {
                     cmd_size = 0;
                 }
             }
@@ -214,7 +232,8 @@ static void console_task(void *parameter)
 
         case '\b':
         case '\x7f':
-            if (cmd_size > 0) {
+            if (cmd_size > 0)
+            {
                 console_clear_line(cmd_size--);
 
                 cmd_buffer[cmd_size] = '\0';
@@ -225,13 +244,15 @@ static void console_task(void *parameter)
         case '\r':
         case '\n':
             am_util_stdio_printf(crlf);
-            if (cmd_size == 0) {
+            if (cmd_size == 0)
+            {
                 console_print_prompt();
                 cmd_hist_cur = cmd_hist_last;
                 break;
             }
 
-            do {
+            do
+            {
                 ret = FreeRTOS_CLIProcessCommand(
                     cmd_buffer, out_str, configCOMMAND_INT_MAX_OUTPUT_SIZE);
                 am_util_stdio_printf(out_str);
@@ -248,8 +269,10 @@ static void console_task(void *parameter)
         default:
             am_util_stdio_printf("%c", ch);
 
-            if ((ch >= ' ') && (ch <= '~')) {
-                if (cmd_size < MAX_INPUT_LEN) {
+            if ((ch >= ' ') && (ch <= '~'))
+            {
+                if (cmd_size < MAX_INPUT_LEN)
+                {
                     cmd_buffer[cmd_size] = ch;
                     cmd_size++;
                 }
@@ -261,11 +284,7 @@ static void console_task(void *parameter)
 
 void console_task_create(uint32_t priority)
 {
-    xTaskCreate(
-        console_task,
-        "console",
-        512, 0, priority,
-        &console_task_handle);
+    xTaskCreate(console_task, "console", 512, 0, priority, &console_task_handle);
 }
 
 void console_print_prompt()
@@ -276,7 +295,7 @@ void console_print_prompt()
     uint32_t subseconds = ticks % configTICK_RATE_HZ;
     uint32_t seconds = unit % 60;
     uint32_t minutes = unit / 60;
-    uint32_t hours   = minutes / 60;
+    uint32_t hours = minutes / 60;
 
     am_util_stdio_printf("%02d:%02d:%02d.%03d ", hours, minutes, seconds, subseconds);
     am_util_stdio_printf(cmd_prompt);
@@ -293,7 +312,8 @@ void am_uart_isr()
     am_bsp_com_uart_transfer(&uart_transfer);
     if (received > 0)
     {
-        xStreamBufferSendFromISR(stream_buffer, (void*)uart_buffer, received, &xHigherPriorityTaskWoken);
+        xStreamBufferSendFromISR(
+            stream_buffer, (void *)uart_buffer, received, &xHigherPriorityTaskWoken);
     }
 
     portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
