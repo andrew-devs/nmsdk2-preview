@@ -201,6 +201,37 @@ LmhPackage_t *LmhpRemoteMcastSetupPackageFactory( void )
     return &LmhpRemoteMcastSetupPackage;
 }
 
+static void LmhpRemoteMcastRestoreSessions()
+{
+    MibRequestConfirm_t mibGet;
+    mibGet.Type = MIB_NVM_CTXS;
+    LoRaMacMibGetRequestConfirm(&mibGet);
+    LoRaMacNvmData_t *nvm = mibGet.Param.Contexts;
+
+    memset(McSessionData, 0, sizeof(McSessionData_t) * LORAMAC_MAX_MC_CTX);
+
+    for (int i = 0; i < LORAMAC_MAX_MC_CTX; i++)
+    {
+        if (nvm->MacGroup2.MulticastChannelList[i].ChannelParams.IsEnabled)
+        {
+            McSessionData[i].McGroupData.IdHeader.Value =
+                nvm->MacGroup2.MulticastChannelList[i].ChannelParams.GroupID;
+            McSessionData[i].McGroupData.McAddr =
+                nvm->MacGroup2.MulticastChannelList[i].ChannelParams.Address;
+            
+            McSessionData[i].McGroupData.McFCountMin =
+                nvm->MacGroup2.MulticastChannelList[i].ChannelParams.FCountMin;
+            McSessionData[i].McGroupData.McFCountMax =
+                nvm->MacGroup2.MulticastChannelList[i].ChannelParams.FCountMax;
+
+            memcpy(
+                &McSessionData[i].RxParams,
+                &(nvm->MacGroup2.MulticastChannelList[i].ChannelParams.RxParams),
+                sizeof(McRxParams_t));
+        }
+    }
+}
+
 static void LmhpRemoteMcastSetupInit( void * params, uint8_t *dataBuffer, uint8_t dataBufferMaxSize )
 {
     if( dataBuffer != NULL )
@@ -211,7 +242,7 @@ static void LmhpRemoteMcastSetupInit( void * params, uint8_t *dataBuffer, uint8_
         TimerInit( &SessionStartTimer, OnSessionStartTimer );
         TimerInit( &SessionStopTimer, OnSessionStopTimer );
 
-        memset(McSessionData, 0, sizeof(McSessionData_t) * LORAMAC_MAX_MC_CTX);
+        LmhpRemoteMcastRestoreSessions();
     }
     else
     {

@@ -4875,6 +4875,7 @@ LoRaMacStatus_t LoRaMacMcChannelSetup( McChannelParams_t *channel )
 
     // Reset multicast channel downlink counter to initial value.
     *Nvm.MacGroup2.MulticastChannelList[channel->GroupID].DownLinkCounter = FCNT_DOWN_INITAL_VALUE;
+    MacCtx.MacFlags.Bits.NvmHandle = 1;
     return LORAMAC_STATUS_OK;
 }
 
@@ -4897,6 +4898,7 @@ LoRaMacStatus_t LoRaMacMcChannelDelete( AddressIdentifier_t groupID )
     memset1( ( uint8_t* )&channel, 0, sizeof( McChannelParams_t ) );
 
     Nvm.MacGroup2.MulticastChannelList[groupID].ChannelParams = channel;
+    MacCtx.MacFlags.Bits.NvmHandle = 1;
     return LORAMAC_STATUS_OK;
 }
 
@@ -4979,6 +4981,7 @@ LoRaMacStatus_t LoRaMacMcChannelSetupRxParams( AddressIdentifier_t groupID, McRx
         // Calculate class b parameters
         LoRaMacClassBSetMulticastPeriodicity( &Nvm.MacGroup2.MulticastChannelList[groupID] );
     }
+    MacCtx.MacFlags.Bits.NvmHandle = 1;
     return LORAMAC_STATUS_OK;
 }
 
