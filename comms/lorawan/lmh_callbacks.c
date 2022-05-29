@@ -37,6 +37,8 @@
 
 #include <LmHandlerMsgDisplay.h>
 
+#include "lorawan_config.h"
+
 #include "lorawan.h"
 #include "lorawan_task.h"
 #include "lmh_callbacks.h"
@@ -103,7 +105,9 @@ static void lmh_on_join_request(LmHandlerJoinParams_t *params)
     {
         am_util_stdio_printf("\r\n");
         DisplayJoinRequestUpdate(params);
-        console_print_prompt();
+        
+        LmHandlerRequestClass(LORAWAN_DEFAULT_CLASS);
+        LmHandlerDeviceTimeReq();
     }
 
     lorawan_task_wake();

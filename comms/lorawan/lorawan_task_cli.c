@@ -46,8 +46,10 @@
 #include <LoRaMacTypes.h>
 #include <LmHandler.h>
 
-#include "eeprom_emulation.h"
-#include "lorawan_eeprom_config.h"
+#include <eeprom_emulation.h>
+#include <lorawan_eeprom_config.h>
+
+#include "lorawan_config.h"
 
 #include "lorawan.h"
 #include "lorawan_task.h"
@@ -90,7 +92,7 @@ static void periodic_transmit_callback(TimerHandle_t handle)
     am_util_stdio_sprintf((char *)lorawan_cli_transmit_buffer, "%d", ui32Count);
     uint32_t length = strlen((char *)lorawan_cli_transmit_buffer);
 
-    lorawan_transmit(LM_APPLICATION_PORT,
+    lorawan_transmit(LORAWAN_DEFAULT_PORT,
         LORAMAC_HANDLER_UNCONFIRMED_MSG,
         length,
         lorawan_cli_transmit_buffer);
@@ -329,7 +331,7 @@ static void lorawan_task_cli_periodic(char *pui8OutBuffer, size_t argc, char **a
 
 static void lorawan_task_cli_send(char *pui8OutBuffer, size_t argc, char **argv)
 {
-    uint32_t port = LM_APPLICATION_PORT;
+    uint32_t port = LORAWAN_DEFAULT_PORT;
     uint32_t ack  = LORAMAC_HANDLER_UNCONFIRMED_MSG;
 
     size_t length;

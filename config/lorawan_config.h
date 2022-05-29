@@ -29,13 +29,12 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _LORAWAN_TASK_H_
-#define _LORAWAN_TASK_H_
+#ifndef _LORAWAN_CONFIG_H_
+#define _LORAWAN_CONFIG_H_
 
-#include <FreeRTOS.h>
+#include <LmHandler.h>
 
-extern void lorawan_task_create(uint32_t ui32Priority);
-extern void lorawan_task_wake();
-extern void lorawan_task_wake_from_isr(BaseType_t *higher_priority_task_woken);
+#define LORAWAN_DEFAULT_PORT          1
+#define LORAWAN_DEFAULT_CLASS   CLASS_A
 
 #endif

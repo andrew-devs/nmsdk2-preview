@@ -52,6 +52,7 @@
 #include <board.h>
 
 #include "lorawan.h"
+#include "lorawan_config.h"
 
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
@@ -188,6 +189,12 @@ static void lorawan_task(void *pvParameters)
 {
     lorawan_task_cli_register();
     lorawan_task_setup();
+
+    if (LmHandlerJoinStatus() == LORAMAC_HANDLER_SET)
+    {
+        LmHandlerRequestClass(LORAWAN_DEFAULT_CLASS);
+        LmHandlerDeviceTimeReq();
+    }
 
     while (1)
     {
