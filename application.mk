@@ -92,3 +92,14 @@ SRC += lmhp_fragmentation.c
 SRC += lorawan_se.c
 SRC += lorawan_task.c
 SRC += lorawan_task_cli.c
+
+INCLUDES += -I./comms/ble
+INCLUDES += -I./comms/ble/tag
+
+VPATH += ./comms/ble
+VPATH += ./comms/ble/tag
+
+SRC += ble_task.c
+SRC += ble_task_cli.c
+SRC += stack_tag.c
+SRC += tag_main_wdxs.c

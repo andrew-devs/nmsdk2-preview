@@ -46,6 +46,7 @@
 #include "application_task.h"
 #include "console_task.h"
 #include "lorawan_task.h"
+#include "ble_task.h"
 
 //*****************************************************************************
 //
@@ -162,6 +163,7 @@ void system_start(void)
 {
     console_task_create(3);
     lorawan_task_create(2);
+    ble_task_create(2);
     application_task_create(1);
     //
     // Start the scheduler.
