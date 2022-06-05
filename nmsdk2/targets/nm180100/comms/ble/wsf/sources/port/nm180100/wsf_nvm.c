@@ -25,7 +25,6 @@
 #include "wsf_types.h"
 #include "wsf_assert.h"
 #include "wsf_nvm.h"
-#include "pal_nvm.h"
 #include "util/crc32.h"
 
 /**************************************************************************************************
@@ -74,7 +73,6 @@ typedef struct
 /*************************************************************************************************/
 void WsfNvmInit(void)
 {
-  PalNvmInit(NULL);
 }
 
 /*************************************************************************************************/
@@ -99,7 +97,7 @@ bool_t WsfNvmReadData(uint32_t id, uint8_t *pData, uint16_t len, WsfNvmCompEvent
   WSF_ASSERT(!((id == WSF_NVM_RESERVED_FILECODE) || (id == WSF_NVM_UNUSED_FILECODE)));
 
   /* Read first header. */
-  PalNvmRead(&header, sizeof(header), storageAddr);
+  memcpy(&header, (const void *)storageAddr, sizeof(header));
 
   do
   {
@@ -126,7 +124,7 @@ bool_t WsfNvmReadData(uint32_t id, uint8_t *pData, uint16_t len, WsfNvmCompEvent
       {
         /* Valid header and matching ID - read data after header. */
         storageAddr += sizeof(header);
-        PalNvmRead(pData, header.len, storageAddr);
+        memcpy(pData, (const void *)storageAddr, sizeof(header.len));
         dataCrc = CalcCrc32(WSF_NVM_CRC_INIT_VALUE, header.len, pData);
         if (dataCrc == header.dataCrc)
         {
@@ -138,7 +136,7 @@ bool_t WsfNvmReadData(uint32_t id, uint8_t *pData, uint16_t len, WsfNvmCompEvent
 
     /* Move to next stored data block and read header. */
     storageAddr += WSF_NVM_WORD_ALIGN(header.len) + sizeof(header);
-    PalNvmRead(&header, sizeof(header), storageAddr);
+    memcpy(&header, (const void *)storageAddr, sizeof(header));
   } while(1);
 
   if (compCback)
@@ -169,7 +167,7 @@ bool_t WsfNvmWriteData(uint32_t id, const uint8_t *pData, uint16_t len, WsfNvmCo
   WSF_ASSERT(!((id == WSF_NVM_RESERVED_FILECODE) || (id == WSF_NVM_UNUSED_FILECODE)));
 
   /* Read first header. */
-  PalNvmRead(&header, sizeof(header), storageAddr);
+  memcpy(&header, (const void *)storageAddr, sizeof(header));
 
   do
   {
@@ -198,13 +196,15 @@ bool_t WsfNvmWriteData(uint32_t id, const uint8_t *pData, uint16_t len, WsfNvmCo
         header.id = WSF_NVM_RESERVED_FILECODE;
         header.headerCrc = 0;
         header.dataCrc = 0;
-        PalNvmWrite(&header, sizeof(header), storageAddr);
+        am_hal_flash_program_main(
+          AM_HAL_FLASH_PROGRAM_KEY, (uint32_t *)&header,
+          (uint32_t *)storageAddr, sizeof(header) / WSF_FLASH_WORD_SIZE);
       }
     }
 
     /* Move to next stored data block and read header. */
     storageAddr += WSF_NVM_WORD_ALIGN(header.len) + sizeof(header);
-    PalNvmRead(&header, sizeof(header), storageAddr);
+    memcpy(&header, (const void *)storageAddr, sizeof(header));
   } while(1);
 
   /* After cycling through all headers, create a new stored data header and store data */
@@ -213,8 +213,13 @@ bool_t WsfNvmWriteData(uint32_t id, const uint8_t *pData, uint16_t len, WsfNvmCo
   header.headerCrc = CalcCrc32(WSF_NVM_CRC_INIT_VALUE, sizeof(header.id) + sizeof(header.len),
                                (uint8_t *)&header);
   header.dataCrc = CalcCrc32(WSF_NVM_CRC_INIT_VALUE, len, pData);
-  PalNvmWrite(&header, sizeof(header), storageAddr);
-  PalNvmWrite((void *)pData, len, storageAddr + sizeof(header));
+  am_hal_flash_program_main(
+    AM_HAL_FLASH_PROGRAM_KEY, (uint32_t *)&header,
+    (uint32_t *)storageAddr, sizeof(header) / WSF_FLASH_WORD_SIZE);
+  am_hal_flash_program_main(
+    AM_HAL_FLASH_PROGRAM_KEY, (uint32_t *)pData,
+    (uint32_t *)(storageAddr + sizeof(header)), len / WSF_FLASH_WORD_SIZE);
+
   if (compCback)
   {
     compCback(TRUE);
@@ -242,7 +247,7 @@ bool_t WsfNvmEraseData(uint32_t id, WsfNvmCompEvent_t compCback)
   WSF_ASSERT(!((id == WSF_NVM_RESERVED_FILECODE) || (id == WSF_NVM_UNUSED_FILECODE)));
 
   /* Read first header. */
-  PalNvmRead(&header, sizeof(header), storageAddr);
+  memcpy(&header, (const void *)storageAddr, sizeof(header));
 
   do
   {
@@ -269,14 +274,17 @@ bool_t WsfNvmEraseData(uint32_t id, WsfNvmCompEvent_t compCback)
         header.id = WSF_NVM_RESERVED_FILECODE;
         header.headerCrc = 0;
         header.dataCrc = 0;
-        PalNvmWrite(&header, sizeof(header), storageAddr);
+        am_hal_flash_program_main(
+          AM_HAL_FLASH_PROGRAM_KEY, (uint32_t *)&header,
+          (uint32_t *)storageAddr, sizeof(header) / WSF_FLASH_WORD_SIZE);
+
         erased = TRUE;
       }
     }
 
     /* Move to next stored data block and read header. */
     storageAddr += WSF_NVM_WORD_ALIGN(header.len) + sizeof(header);
-    PalNvmRead(&header, sizeof(header), storageAddr);
+    memcpy(&header, (const void *)storageAddr, sizeof(header));
   } while(1);
 
   if (compCback)
@@ -299,6 +307,13 @@ bool_t WsfNvmEraseData(uint32_t id, WsfNvmCompEvent_t compCback)
 void WsfNvmEraseSector(uint32_t numOfSectors, WsfNvmCompEvent_t compCback)
 {
   PalNvmEraseSector(numOfSectors * PAL_NVM_SECTOR_SIZE, WSF_NVM_START_ADDR);
+  for (uint32_t eraseAddr = WSF_NVM_START_ADDR; eraseAddr < wsfNvmCb.availAddr; eraseAddr += wsfNvmCb.sectorSize)
+  {
+    am_hal_flash_page_erase(
+        AM_HAL_FLASH_PROGRAM_KEY,
+        AM_HAL_FLASH_ADDR2INST(eraseAddr),
+        AM_HAL_FLASH_ADDR2PAGE(eraseAddr));
+  }
 
   if (compCback)
   {

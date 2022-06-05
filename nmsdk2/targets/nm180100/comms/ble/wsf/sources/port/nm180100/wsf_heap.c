@@ -29,16 +29,16 @@
 #include "wsf_os.h"
 #include "wsf_trace.h"
 #include "wsf_cs.h"
-#include "pal_sys.h"
 
 /**************************************************************************************************
   Global Variables
 **************************************************************************************************/
+#define WSF_HEAP_SIZE (0x8000)
 
-extern uint8_t *SystemHeapStart;
-extern uint32_t SystemHeapSize;
-extern unsigned long __heap_end__;
-extern unsigned long __heap_start__;
+static uint8_t wsfHeap[WSF_HEAP_SIZE];
+
+static uint8_t *SystemHeapStart = wsfHeap;
+static uint32_t SystemHeapSize = WSF_HEAP_SIZE;
 
 /*************************************************************************************************/
 /*!
@@ -91,9 +91,5 @@ uint32_t WsfHeapCountAvailable(void)
 /*************************************************************************************************/
 uint32_t WsfHeapCountUsed(void)
 {
-#ifdef __GNUC__
-  return ((uint8_t *)&__heap_end__ - (uint8_t *)&__heap_start__) - SystemHeapSize;
-#else
-  return 0;
-#endif
+  return WSF_HEAP_SIZE - SystemHeapSize;
 }

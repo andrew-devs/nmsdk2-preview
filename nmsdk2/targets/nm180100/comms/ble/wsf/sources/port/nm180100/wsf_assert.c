@@ -25,7 +25,6 @@
 #include "wsf_types.h"
 #include "wsf_assert.h"
 #include "wsf_trace.h"
-#include "pal_sys.h"
 
 /**************************************************************************************************
   Global Variables
@@ -61,5 +60,5 @@ void WsfAssert(const char *pFile, uint16_t line)
   WSF_TRACE_ERR2("Assertion detected on %s:%u", pFile, line);
 #endif
 
-  PalSysAssertTrap();
+  while(1);
 }
