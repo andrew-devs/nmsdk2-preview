@@ -5,9 +5,11 @@ include $(TARGET)/makedefs/common.mk
 include $(TARGET)/makedefs/defs_hal.mk
 include $(TARGET)/makedefs/defs_rtos.mk
 include $(TARGET)/makedefs/defs_lorawan.mk
+include $(TARGET)/makedefs/defs_ble.mk
 include $(TARGET)/makedefs/includes_hal.mk
 include $(TARGET)/makedefs/includes_rtos.mk
 include $(TARGET)/makedefs/includes_lorawan.mk
+include $(TARGET)/makedefs/includes_ble.mk
 
 BSP_GENERATOR := ./tools/bsp_generator/pinconfig.py
 
@@ -22,12 +24,13 @@ INCLUDES += -I./bsp
 VPATH    += ./bsp
 SRC += am_bsp.c
 
-CFLAGS_DBG += $(INCLUDES) $(HAL_INC) $(RTOS_INC) $(LORAWAN_INC)
-CFLAGS_REL += $(INCLUDES) $(HAL_INC) $(RTOS_INC) $(LORAWAN_INC)
+CFLAGS_DBG += $(INCLUDES) $(HAL_INC) $(RTOS_INC) $(LORAWAN_INC) $(BLE_INC)
+CFLAGS_REL += $(INCLUDES) $(HAL_INC) $(RTOS_INC) $(LORAWAN_INC) $(BLE_INC)
 
 LIBS_DBG += $(HAL_LIB_DBG)
 LIBS_DBG += $(RTOS_LIB_DBG)
 LIBS_DBG += $(LORAWAN_LIB_DBG)
+LIBS_DBG += $(BLE_LIB_DBG)
 SDK_LIBS_DBG = $(LIBS_DBG:%.a=$(TARGET)/lib/%.a)
 
 LFLAGS_DBG += $(LFLAGS)
@@ -46,6 +49,7 @@ LFLAGS_REL += -Wl,--gc-sections
 LIBS_REL += $(HAL_LIB_REL)
 LIBS_REL += $(RTOS_LIB_REL)
 LIBS_REL += $(LORAWAN_LIB_REL)
+LIBS_REL += $(BLE_LIB_REL)
 SDK_LIBS_REL = $(LIBS_REL:%.a=$(TARGET)/lib/%.a)
 
 LFLAGS_REL += $(LFLAGS)
