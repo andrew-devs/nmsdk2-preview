@@ -30,7 +30,6 @@
 #include "hci_api.h"
 #include "hci_main.h"
 #include "hci_cmd.h"
-#include "hci_apollo_config.h"
 #include "am_mcu_apollo.h"
 #include "hci_drv_apollo3.h"
 

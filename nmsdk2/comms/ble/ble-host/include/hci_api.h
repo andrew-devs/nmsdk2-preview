@@ -117,6 +117,7 @@ extern "C" {
 #define HCI_CIS_EST_CBACK_EVT                            68  /*!< \brief CIS established event */
 #define HCI_CIS_REQ_CBACK_EVT                            69  /*!< \brief CIS request event */
 #define HCI_REQ_PEER_SCA_CBACK_EVT                       70  /*!< \brief Request peer SCA complete */
+#define HCI_LE_CONNLESS_IQ_REPORT_CBACK_EVT              71  /*!< \brief LE connectioness IQ report event */
 /**@}*/
 
 /**************************************************************************************************
@@ -630,6 +631,23 @@ typedef struct
   int8_t        *pQSample;     /*!< \brief List of Q Samples. */
 } hciLeConnIQReportEvt_t;
 
+/*! \brief LE connectionless IQ report */
+typedef struct
+{
+  wsfMsgHdr_t   hdr;           /*!< \brief Event header. */
+  uint16_t      synHdl;        /*!< \brief Periodic advertising train. */
+  uint8_t       chIdx;         /*!< \brief Index of channel. */
+  int16_t       rssi;          /*!< \brief RSSI. */
+  uint8_t       rssiAntennaId; /*!< \brief RSSI Antenna ID. */
+  uint8_t       cteType;       /*!< \brief CTE Type. */
+  uint8_t       slotDurations; /*!< \brief Slot Durations. */
+  uint8_t       pktStatus;     /*!< \brief Packet Status. */
+  uint16_t      paEvtCnt;      /*!< \brief for reported AUX_SYNC_IND PDU. */
+  uint8_t       sampleCnt;     /*!< \brief Sample Count. */
+  int8_t        *pISample;     /*!< \brief List of I Samples. */
+  int8_t        *pQSample;     /*!< \brief List of Q Samples. */
+} hciLeConlessIQReportEvt_t;
+
 /*! \brief LE CTE request failed event */
 typedef struct
 {
@@ -750,6 +768,7 @@ typedef union
   hciLePerAdvSyncTrsfCmdCmplEvt_t     lePerAdvSyncTrsfCmdCmpl;     /*!< \brief LE periodic advertising sync transfer command complete. */
   hciLePerAdvSetInfoTrsfCmdCmplEvt_t  lePerAdvSetInfoTrsfCmdCmpl;  /*!< \brief LE set periodic advertising set info transfer command complete. */
   hciLeConnIQReportEvt_t              leConnIQReport;              /*!< \brief LE connection IQ report. */
+  hciLeConlessIQReportEvt_t           leConlessIQReport;              /*!< \brief LE connection IQ report. */
   hciLeCteReqFailedEvt_t              leCteReqFailed;              /*!< \brief LE CTE request failed. */
   hciLeSetConnCteRxParamsCmdCmplEvt_t leSetConnCteRxParamsCmdCmpl; /*!< \brief LE set connection CTE receive parameters command complete. */
   hciLeSetConnCteTxParamsCmdCmplEvt_t leSetConnCteTxParamsCmdCmpl; /*!< \brief LE set connection CTE transmit parameters command complete. */
@@ -825,6 +844,52 @@ typedef struct
   uint16_t            scanWindow;      /*!< \brief Scan window. */
   uint8_t             scanType;        /*!< \brief Scan type. */
 } hciExtScanParam_t;
+
+// Length of switching pattern
+#define MAX_SWITCHING_PATTERN_LEN  (0x4B)
+
+/*! \brief LE receiver test v3 command parameters */
+typedef struct
+{
+    /// RX channel
+    uint8_t     rx_channel;
+    /// PHY
+    uint8_t     phy;
+    /// Modulation index
+    uint8_t     mod_idx;
+    /// Expected CTE length (in 8us unit)
+    uint8_t     exp_cte_len;
+    /// Expected CTE type (0: AOA | 1: AOD-1us | 2: AOD-2us)
+    uint8_t     exp_cte_type;
+    /// Slot durations
+    uint8_t     slot_dur;
+    /// Length of switching pattern (number of antenna IDs in the pattern)
+    uint8_t     switching_pattern_len;
+    /// Antenna IDs
+    uint8_t     antenna_id[MAX_SWITCHING_PATTERN_LEN];
+} hciLeRxTestV3Cmd_t;
+
+/*! \brief LE transmitter test v3 command parameters */
+typedef struct
+{
+    /// TX channel
+    uint8_t     tx_channel;
+    /// Length of test data
+    uint8_t     test_data_len;
+    /// Packet payload
+    uint8_t     pkt_payl;
+    /// PHY (@enum le_phy_value)
+    uint8_t     phy;
+    /// CTE length (in 8us unit)
+    uint8_t     cte_len;
+    /// CTE type (0: AOA | 1: AOD-1us | 2: AOD-2us)
+    uint8_t     cte_type;
+    /// Length of switching pattern (number of antenna IDs in the pattern)
+    uint8_t     switching_pattern_len;
+    /// Antenna IDs
+    uint8_t     antenna_id[MAX_SWITCHING_PATTERN_LEN];
+} hciLeTxTestV3Cmd_t;
+
 
 /*! \} */    /* STACK_HCI_CMD_API */
 
@@ -2376,6 +2441,63 @@ void HciLeConnCteRspEnableCmd(uint16_t connHandle, uint8_t enable);
 /*************************************************************************************************/
 void HciLeReadAntennaInfoCmd(void);
 /**@}*/
+
+/*************************************************************************************************/
+/*!
+ *  \brief      HCI LE set Connectionless IQ Sampling Enable command.
+ *
+ *  \param      syncHandle       identify periodic advertising train
+ *  \param      samplingEnable   TRUE to enable Connection IQ sampling, FALSE to disable it.
+ *  \param      slotDurations    Switching and sampling slot durations to be used while receiving CTE.
+ *  \param      maxSampleCte    maximum number of Constant Tone Extensions in each periodic advertising event 
+                                that the Controller should collect and report IQ samples from
+ *  \param      switchPatternLen Number of Antenna IDs in switching pattern.
+ *  \param      pAntennaIDs      List of Antenna IDs in switching pattern.
+ *
+ *  \return     None.
+ */
+/*************************************************************************************************/
+void HciLeSetConlessIQSampleEnCmd(uint16_t syncHandle, uint8_t samplingEnable, uint8_t slotDurations,
+                                uint8_t maxSampleCte,uint8_t switchPatternLen, uint8_t *pAntennaIDs);
+
+/*************************************************************************************************/
+/*!
+ *  \brief      HCI LE Receiver Test command.
+ *
+ *  \param      RX_Channel  radio channel
+ *
+ *  \return     None.
+ */
+/*************************************************************************************************/
+void HciLeReceiverTestCmd(uint8_t RX_Channel);
+
+/*************************************************************************************************/
+/*!
+ *  \brief      HCI LE Transmitter Test command.
+ *
+ *  \param      TX_Channel        radio channel to transmit
+ *  \param      len_of_test_data  the length of data to transmit
+ *  \param      packet_payload    the payload type to transmit
+ *
+ *  \return     None.
+ */
+/*************************************************************************************************/
+void HciLeTransmitterTestCmd(uint8_t TX_Channel, uint8_t len_of_test_data, uint8_t packet_payload);
+
+/*************************************************************************************************/
+/*!
+ *  \brief      HCI LE Test End command.
+ *
+ *  \param      None
+ *
+ *  \return     None.
+ */
+/*************************************************************************************************/
+void HciLeTestEndCmd(void);
+
+void HciLeReceiverTestCmdV3(hciLeRxTestV3Cmd_t *rx_test_v3);
+
+void HciLeTransmitterTestCmdV3(hciLeTxTestV3Cmd_t *tx_test_v3);
 
 /*! \} */    /* STACK_HCI_CMD_API */
 

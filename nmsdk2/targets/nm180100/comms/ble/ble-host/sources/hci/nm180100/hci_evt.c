@@ -1,22 +1,27 @@
 /*************************************************************************************************/
 /*!
- *  \file   hci_evt.c
+ *  \file
  *
  *  \brief  HCI event module.
  *
- *          $Date: 2017-06-15 16:53:37 -0500 (Thu, 15 Jun 2017) $
- *          $Revision: 12305 $
+ *  Copyright (c) 2009-2019 Arm Ltd.
  *
- *  Copyright (c) 2009-2017 ARM Ltd., all rights reserved.
- *  ARM Ltd. confidential and proprietary.
+ *  Copyright (c) 2019 Packetcraft, Inc.
  *
- *  IMPORTANT.  Your use of this file is governed by a Software License Agreement
- *  ("Agreement") that must be accepted in order to download or otherwise receive a
- *  copy of this file.  You may not use or copy this file for any purpose other than
- *  as described in the Agreement.  If you do not agree to all of the terms of the
- *  Agreement do not use this file and delete all copies in your possession or control;
- *  if you do not have a copy of the Agreement, you must contact ARM Ltd. prior
- *  to any use, copying or further distribution of this software.
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  This module implements parsing and translation of HCI event data structures. This module
+ *  contains separate implementations for dual chip and single chip.
  */
 /*************************************************************************************************/
 
@@ -24,12 +29,16 @@
 #include "wsf_types.h"
 #include "wsf_buf.h"
 #include "wsf_trace.h"
-#include "bstream.h"
+#include "util/bstream.h"
 #include "hci_api.h"
 #include "hci_main.h"
 #include "hci_evt.h"
 #include "hci_cmd.h"
 #include "hci_core.h"
+
+#ifdef WSF_DETOKEN_TRACE
+#include "wsf_detoken.h"
+#endif /* LL_DETOKEN_TRACE */
 
 /**************************************************************************************************
   Macros
@@ -103,14 +112,18 @@ static void hciEvtParseLeAdvSetTerm(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
 static void hciEvtParseLeScanReqRcvd(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
 static void hciEvtParseLePerAdvSyncEst(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
 static void hciEvtParseLePerAdvSyncLost(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
+static void hciEvtParseLeChSelAlgo(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
 static void hciEvtParseLeCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
 
-static void hciEvtProcessLeConnIQReport(uint8_t *p, uint8_t len);
-static void hciEvtProcessLeConlessIQReport(uint8_t *p, uint8_t len);
-static void hciEvtParseLeSetConnCteRcvParm(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
-static void hciEvtParseLeSetConnCteTxParm(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
-static void hciEvtParseLeConnCteReqEn(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
-static void hciEvtParseLeConnCteRspEn(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
+static void hciEvtParseLePerSyncTrsfRcvd(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
+static void hciEvtParseLePerAdvSyncTrsfCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
+static void hciEvtParseLePerAdvSetInfoTrsfCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
+static void hciEvtParseLeCteReqFailed(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
+static void hciEvtParseLeSetConnCteRxParamsCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
+static void hciEvtParseLeSetConnCteTxParamsCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
+static void hciEvtParseLeConnCteReqEnableCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
+static void hciEvtParseLeConnCteRspEnableCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
+static void hciEvtParseLeReadAntennaInfoCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len);
 
 /**************************************************************************************************
   Local Variables
@@ -170,26 +183,23 @@ static const hciEvtParse_t hciEvtParseFcnTbl[] =
   hciEvtParseLePerAdvSyncEst,
   NULL,
   hciEvtParseLePerAdvSyncLost,
-  NULL,
+  hciEvtParseLeChSelAlgo,
   hciEvtParseLeCmdCmpl,
   hciEvtParseLeCmdCmpl,
   hciEvtParseLeCmdCmpl,
   hciEvtParseLeCmdCmpl,
   hciEvtParseLeCmdCmpl,
-
+  hciEvtParseLeCmdCmpl,
+  hciEvtParseLePerSyncTrsfRcvd,
+  hciEvtParseLePerAdvSyncTrsfCmdCmpl,
+  hciEvtParseLePerAdvSetInfoTrsfCmdCmpl,
   NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-
-  hciEvtParseLeSetConnCteRcvParm,
-  hciEvtParseLeSetConnCteTxParm,
-  hciEvtParseLeConnCteReqEn,
-  hciEvtParseLeConnCteRspEn
-
-  
+  hciEvtParseLeCteReqFailed,
+  hciEvtParseLeSetConnCteRxParamsCmdCmpl,
+  hciEvtParseLeSetConnCteTxParamsCmdCmpl,
+  hciEvtParseLeConnCteReqEnableCmdCmpl,
+  hciEvtParseLeConnCteRspEnableCmdCmpl,
+  hciEvtParseLeReadAntennaInfoCmdCmpl
 };
 
 /* HCI event structure length table, indexed by internal callback event value */
@@ -246,24 +256,23 @@ static const uint8_t hciEvtCbackLen[] =
   sizeof(hciLePerAdvSyncEstEvt_t),
   sizeof(hciLePerAdvReportEvt_t),
   sizeof(hciLePerAdvSyncLostEvt_t),
+  sizeof(hciLeChSelAlgoEvt_t),
   sizeof(wsfMsgHdr_t),
   sizeof(wsfMsgHdr_t),
   sizeof(wsfMsgHdr_t),
   sizeof(wsfMsgHdr_t),
   sizeof(wsfMsgHdr_t),
   sizeof(wsfMsgHdr_t),
-
-  sizeof(wsfMsgHdr_t),
-  sizeof(wsfMsgHdr_t),
-  sizeof(wsfMsgHdr_t),
-  sizeof(wsfMsgHdr_t),
+  sizeof(HciLePerAdvSyncTrsfRcvdEvt_t),
+  sizeof(hciLePerAdvSyncTrsfCmdCmplEvt_t),
+  sizeof(hciLePerAdvSetInfoTrsfCmdCmplEvt_t),
   sizeof(hciLeConnIQReportEvt_t),
-  sizeof(wsfMsgHdr_t),
-
+  sizeof(hciLeCteReqFailedEvt_t),
   sizeof(hciLeSetConnCteRxParamsCmdCmplEvt_t),
   sizeof(hciLeSetConnCteTxParamsCmdCmplEvt_t),
   sizeof(hciLeConnCteReqEnableCmdCmplEvt_t),
-  sizeof(hciLeConnCteRspEnableCmdCmplEvt_t)  
+  sizeof(hciLeConnCteRspEnableCmdCmplEvt_t),
+  sizeof(hciLeReadAntennaInfoCmdCmplEvt_t)
 };
 
 /* Global event statistics. */
@@ -272,8 +281,6 @@ static hciEvtStats_t hciEvtStats = {0};
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeConnCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -305,8 +312,6 @@ static void hciEvtParseLeConnCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeEnhancedConnCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -336,8 +341,6 @@ static void hciEvtParseLeEnhancedConnCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t le
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseDisconnectCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -359,8 +362,6 @@ static void hciEvtParseDisconnectCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeConnUpdateCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -384,8 +385,6 @@ static void hciEvtParseLeConnUpdateCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeCreateConnCancelCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -404,8 +403,6 @@ static void hciEvtParseLeCreateConnCancelCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uin
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseReadRssiCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -427,8 +424,6 @@ static void hciEvtParseReadRssiCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseReadChanMapCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -451,8 +446,6 @@ static void hciEvtParseReadChanMapCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t le
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtReadTxPwrLvlCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -474,8 +467,6 @@ static void hciEvtParseReadTxPwrLvlCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t l
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseReadRemoteVerInfoCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -499,8 +490,6 @@ static void hciEvtParseReadRemoteVerInfoCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeReadRemoteFeatCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -522,8 +511,6 @@ static void hciEvtParseReadLeRemoteFeatCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t 
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeLtkReqReplCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -544,8 +531,6 @@ static void hciEvtParseLeLtkReqReplCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t l
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeLtkReqNegReplCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -566,8 +551,6 @@ static void hciEvtParseLeLtkReqNegReplCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseEncKeyRefreshCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -588,8 +571,6 @@ static void hciEvtParseEncKeyRefreshCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseEncChange
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -611,8 +592,6 @@ static void hciEvtParseEncChange(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeLtkReq
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -636,8 +615,6 @@ static void hciEvtParseLeLtkReq(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseVendorSpecCmdStatus
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -654,8 +631,6 @@ static void hciEvtParseVendorSpecCmdStatus(hciEvt_t *pMsg, uint8_t *p, uint8_t l
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseVendorSpecCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -672,13 +647,11 @@ static void hciEvtParseVendorSpecCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len
 
   BSTREAM_TO_UINT16(pMsg->vendorSpecCmdCmpl.opcode, p);
   BSTREAM_TO_UINT8(pMsg->hdr.status, p);
-  memcpy(&pMsg->vendorSpecCmdCmpl.param[0], p, len - 4);
+  BSTREAM_TO_UINT8(pMsg->vendorSpecCmdCmpl.param[0], p);
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseVendorSpec
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -695,8 +668,6 @@ static void hciEvtParseVendorSpec(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseHwError
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -713,8 +684,6 @@ static void hciEvtParseHwError(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeEncryptCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -734,8 +703,6 @@ static void hciEvtParseLeEncryptCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeRandCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -755,8 +722,6 @@ static void hciEvtParseLeRandCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeAddDevToResListCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -775,8 +740,6 @@ static void hciEvtParseLeAddDevToResListCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeRemDevFromResListCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -795,8 +758,6 @@ static void hciEvtParseLeRemDevFromResListCmdCmpl(hciEvt_t *pMsg, uint8_t *p, ui
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeClearResListCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -815,8 +776,6 @@ static void hciEvtParseLeClearResListCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeReadPeerResAddrCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -836,8 +795,6 @@ static void hciEvtParseLeReadPeerResAddrCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeReadLocalResAddrCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -857,8 +814,6 @@ static void hciEvtParseLeReadLocalResAddrCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uin
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeSetAddrResEnableCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -877,8 +832,6 @@ static void hciEvtParseLeSetAddrResEnableCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uin
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseRemConnParamRepCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -899,8 +852,6 @@ static void hciEvtParseRemConnParamRepCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseRemConnParamNegRepCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -921,8 +872,6 @@ static void hciEvtParseRemConnParamNegRepCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uin
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseReadDefDataLenCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -943,8 +892,6 @@ static void hciEvtParseReadDefDataLenCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseWriteDefDataLenCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -957,14 +904,11 @@ static void hciEvtParseReadDefDataLenCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t
 static void hciEvtParseWriteDefDataLenCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 {
   BSTREAM_TO_UINT8(pMsg->leWriteDefDataLenCmdCmpl.status, p);
-
   pMsg->hdr.status = pMsg->leWriteDefDataLenCmdCmpl.status;
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseSetDataLenCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -985,8 +929,6 @@ static void hciEvtParseSetDataLenCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseReadMaxDataLenCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1009,8 +951,6 @@ static void hciEvtParseReadMaxDataLenCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseRemConnParamReq
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1033,8 +973,6 @@ static void hciEvtParseRemConnParamReq(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseDataLenChange
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1057,8 +995,6 @@ static void hciEvtParseDataLenChange(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseReadPubKeyCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1078,8 +1014,6 @@ static void hciEvtParseReadPubKeyCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseGenDhKeyCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1099,8 +1033,6 @@ static void hciEvtParseGenDhKeyCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseWriteAuthTimeoutCmdCmpl
- *
  *  \brief  Process HCI write authenticated payload timeout command complete event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1121,8 +1053,6 @@ void hciEvtParseWriteAuthTimeoutCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseAuthTimeoutExpiredEvt
- *
  *  \brief  Process HCI authenticated payload timeout expired event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1141,8 +1071,6 @@ void hciEvtParseAuthTimeoutExpiredEvt(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseReadPhyCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1165,8 +1093,6 @@ static void hciEvtParseReadPhyCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseSetDefPhyCmdCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1185,8 +1111,6 @@ static void hciEvtParseSetDefPhyCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParsePhyUpdateCmpl
- *
  *  \brief  Parse an HCI event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1209,8 +1133,6 @@ static void hciEvtParsePhyUpdateCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtProcessLeAdvReport
- *
  *  \brief  Process an HCI LE advertising report.
  *
  *  \param  p    Buffer containing HCI event, points to start of parameters.
@@ -1269,7 +1191,7 @@ static void hciEvtProcessLeAdvReport(uint8_t *p, uint8_t len)
       /* initialize message header */
       pMsg->hdr.param = 0;
       pMsg->hdr.event = HCI_LE_ADV_REPORT_CBACK_EVT;
-      pMsg->hdr.status = 0;
+      pMsg->hdr.status = HCI_SUCCESS;
 
       /* execute callback */
       (*hciCb.evtCback)((hciEvt_t *) pMsg);
@@ -1282,8 +1204,6 @@ static void hciEvtProcessLeAdvReport(uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtProcessLeExtAdvReport
- *
  *  \brief  Process an HCI LE extended advertising report.
  *
  *  \param  p    Buffer containing HCI event, points to start of parameters.
@@ -1368,7 +1288,7 @@ static void hciEvtProcessLeExtAdvReport(uint8_t *p, uint8_t len)
       /* initialize message header */
       pMsg->hdr.param = 0;
       pMsg->hdr.event = HCI_LE_EXT_ADV_REPORT_CBACK_EVT;
-      pMsg->hdr.status = 0;
+      pMsg->hdr.status = HCI_SUCCESS;
 
       /* execute callback */
       (*hciCb.evtCback)((hciEvt_t *)pMsg);
@@ -1381,8 +1301,6 @@ static void hciEvtProcessLeExtAdvReport(uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeScanTimeout
- *
  *  \brief  Parse an HCI LE scan timeout event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1399,8 +1317,6 @@ static void hciEvtParseLeScanTimeout(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeAdvSetTerm
- *
  *  \brief  Parse an HCI LE advertising set terminated event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1418,13 +1334,11 @@ static void hciEvtParseLeAdvSetTerm(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
   BSTREAM_TO_UINT8(pMsg->leAdvSetTerm.numComplEvts, p);
 
   pMsg->hdr.status = pMsg->leAdvSetTerm.status;
-  pMsg->hdr.param = pMsg->leAdvSetTerm.handle;
+  pMsg->hdr.param = pMsg->leAdvSetTerm.advHandle;
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeScanReqRcvd
- *
  *  \brief  Parse an HCI LE scan request received event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1439,12 +1353,12 @@ static void hciEvtParseLeScanReqRcvd(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
   BSTREAM_TO_UINT8(pMsg->leScanReqRcvd.advHandle, p);
   BSTREAM_TO_UINT8(pMsg->leScanReqRcvd.scanAddrType, p);
   BSTREAM_TO_BDA(pMsg->leScanReqRcvd.scanAddr, p);
+
+  pMsg->hdr.param = pMsg->leScanReqRcvd.advHandle;
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLePerAdvSyncEst
- *
  *  \brief  Parse an HCI LE periodic advertising sync established event.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1466,15 +1380,13 @@ static void hciEvtParseLePerAdvSyncEst(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
   BSTREAM_TO_UINT8(pMsg->lePerAdvSyncEst.clockAccuracy, p);
 
   pMsg->hdr.status = pMsg->lePerAdvSyncEst.status;
+  pMsg->hdr.param = pMsg->lePerAdvSyncEst.syncHandle;
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtProcessLePerAdvReport
- *
  *  \brief  Process an HCI LE periodic advertising report event.
  *
- *  \param  pMsg    Pointer to output event message structure.
  *  \param  p       Pointer to input HCI event parameter byte stream.
  *  \param  len     Parameter byte stream length.
  *
@@ -1516,9 +1428,9 @@ static void hciEvtProcessLePerAdvReport(uint8_t *p, uint8_t len)
     memcpy(pMsg->pData, p, pMsg->len);
 
     /* initialize message header */
-    pMsg->hdr.param = 0;
+    pMsg->hdr.param = pMsg->syncHandle;
     pMsg->hdr.event = HCI_LE_PER_ADV_REPORT_CBACK_EVT;
-    pMsg->hdr.status = pMsg->status;
+    pMsg->hdr.status = HCI_SUCCESS;
 
     /* execute callback */
     (*hciCb.evtCback)((hciEvt_t *)pMsg);
@@ -1530,8 +1442,6 @@ static void hciEvtProcessLePerAdvReport(uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeCmdCmpl
- *
  *  \brief  Parse an HCI LE complete event containing a one byte status.
  *
  *  \param  pMsg    Pointer to output event message structure.
@@ -1548,9 +1458,113 @@ static void hciEvtParseLeCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtProcessLeConnIQReport
+ *  \brief  Parse an HCI LE periodic advertising synch lost event.
  *
- *  \brief  Process an HCI LE Connection IQ report.
+ *  \param  pMsg    Pointer to output event message structure.
+ *  \param  p       Pointer to input HCI event parameter byte stream.
+ *  \param  len     Parameter byte stream length.
+ *
+ *  \return None.
+ */
+/*************************************************************************************************/
+static void hciEvtParseLePerAdvSyncLost(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+{
+  BSTREAM_TO_UINT16(pMsg->lePerAdvSyncLost.syncHandle, p);
+
+  pMsg->hdr.param = pMsg->lePerAdvSyncLost.syncHandle;
+}
+
+/*************************************************************************************************/
+/*!
+ *  \brief  Parse an HCI LE channel selection algorithm event.
+ *
+ *  \param  pMsg    Pointer to output event message structure.
+ *  \param  p       Pointer to input HCI event parameter byte stream.
+ *  \param  len     Parameter byte stream length.
+ *
+ *  \return None.
+ */
+/*************************************************************************************************/
+static void hciEvtParseLeChSelAlgo(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+{
+  BSTREAM_TO_UINT16(pMsg->leChSelAlgo.handle, p);
+  BSTREAM_TO_UINT8(pMsg->leChSelAlgo.chSelAlgo, p);
+
+  pMsg->hdr.param = pMsg->leChSelAlgo.handle;
+}
+
+/*************************************************************************************************/
+/*!
+ *  \brief  Parse an HCI LE periodic advertising synch transfer received event.
+ *
+ *  \param  pMsg    Pointer to output event message structure.
+ *  \param  p       Pointer to input HCI event parameter byte stream.
+ *  \param  len     Parameter byte stream length.
+ *
+ *  \return None.
+*/
+/*************************************************************************************************/
+static void hciEvtParseLePerSyncTrsfRcvd(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+{
+  BSTREAM_TO_UINT8(pMsg->lePerAdvSyncTrsfRcvd.status, p);
+  BSTREAM_TO_UINT16(pMsg->lePerAdvSyncTrsfRcvd.connHandle, p);
+  BSTREAM_TO_UINT16(pMsg->lePerAdvSyncTrsfRcvd.serviceData, p);
+  BSTREAM_TO_UINT16(pMsg->lePerAdvSyncTrsfRcvd.syncHandle, p);
+  BSTREAM_TO_UINT8(pMsg->lePerAdvSyncTrsfRcvd.advSid, p);
+  BSTREAM_TO_UINT8(pMsg->lePerAdvSyncTrsfRcvd.advAddrType, p);
+  BSTREAM_TO_BDA(pMsg->lePerAdvSyncTrsfRcvd.advAddr, p);
+  BSTREAM_TO_UINT8(pMsg->lePerAdvSyncTrsfRcvd.advPhy, p);
+  BSTREAM_TO_UINT16(pMsg->lePerAdvSyncTrsfRcvd.perAdvInterval, p);
+  BSTREAM_TO_UINT8(pMsg->lePerAdvSyncTrsfRcvd.clockAccuracy, p);
+
+  /* initialize message header */
+  pMsg->hdr.status = pMsg->lePerAdvSyncTrsfRcvd.status;
+  pMsg->hdr.param = pMsg->lePerAdvSyncTrsfRcvd.connHandle;
+}
+
+/*************************************************************************************************/
+/*!
+ *  \brief  Parse an HCI LE periodic advertising sync transfer command complete event.
+ *
+ *  \param  pMsg    Pointer to output event message structure.
+ *  \param  p       Pointer to input HCI event parameter byte stream.
+ *  \param  len     Parameter byte stream length.
+ *
+ *  \return None.
+ */
+/*************************************************************************************************/
+static void hciEvtParseLePerAdvSyncTrsfCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+{
+  BSTREAM_TO_UINT8(pMsg->lePerAdvSyncTrsfCmdCmpl.status, p);
+  BSTREAM_TO_UINT16(pMsg->lePerAdvSyncTrsfCmdCmpl.handle, p);
+
+  pMsg->hdr.param = pMsg->lePerAdvSyncTrsfCmdCmpl.handle;
+  pMsg->hdr.status = pMsg->lePerAdvSyncTrsfCmdCmpl.status;
+}
+
+/*************************************************************************************************/
+/*!
+ *  \brief  Parse an HCI LE set periodic advertising set info transfer command complete event.
+ *
+ *  \param  pMsg    Pointer to output event message structure.
+ *  \param  p       Pointer to input HCI event parameter byte stream.
+ *  \param  len     Parameter byte stream length.
+ *
+ *  \return None.
+ */
+/*************************************************************************************************/
+static void hciEvtParseLePerAdvSetInfoTrsfCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+{
+  BSTREAM_TO_UINT8(pMsg->lePerAdvSetInfoTrsfCmdCmpl.status, p);
+  BSTREAM_TO_UINT16(pMsg->lePerAdvSetInfoTrsfCmdCmpl.handle, p);
+
+  pMsg->hdr.param = pMsg->lePerAdvSetInfoTrsfCmdCmpl.handle;
+  pMsg->hdr.status = pMsg->lePerAdvSetInfoTrsfCmdCmpl.status;
+}
+
+/*************************************************************************************************/
+/*!
+ *  \brief  Process an HCI LE direct advertising report.
  *
  *  \param  p    Buffer containing HCI event, points to start of parameters.
  *  \param  len  Parameter byte stream length.
@@ -1558,45 +1572,117 @@ static void hciEvtParseLeCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
  *  \return None.
  */
 /*************************************************************************************************/
-static void hciEvtProcessLeConnIQReport(uint8_t *p, uint8_t len)
+static void hciEvtProcessLeDirectAdvReport(uint8_t *p, uint8_t len)
 {
-    hciLeConnIQReportEvt_t *pMsg;
-    APP_TRACE_INFO0("hciEvtProcessLeConnIQReport");
+  hciLeAdvReportEvt_t *pMsg;
+  uint8_t             i;
 
-    if ((pMsg = WsfBufAlloc(sizeof(hciLeConnIQReportEvt_t) + HCI_IQ_RPT_SAMPLE_CNT_MAX*2)) != NULL)
+  /* get number of reports */
+  BSTREAM_TO_UINT8(i, p);
+
+  HCI_TRACE_INFO1("HCI Adv report, num reports: %d", i);
+
+  /* sanity check num reports */
+  if (i > HCI_MAX_REPORTS)
+  {
+    return;
+  }
+
+  /* allocate temp buffer that can hold max length adv/scan rsp data */
+  if ((pMsg = WsfBufAlloc(sizeof(hciLeAdvReportEvt_t))) != NULL)
+  {
+    /* parse each report and execute callback */
+    while (i-- > 0)
     {
-        APP_TRACE_INFO0("rcv Le ConnIQ Report...");
-        BSTREAM_TO_UINT16(pMsg->handle, p);
-        BSTREAM_TO_UINT8(pMsg->rxPhy, p);
-        BSTREAM_TO_UINT8(pMsg->dataChIdx, p);
-        BSTREAM_TO_UINT16(pMsg->rssi, p); 
-        BSTREAM_TO_UINT8(pMsg->rssiAntennaId, p);
-        BSTREAM_TO_UINT8(pMsg->cteType, p);
-        BSTREAM_TO_UINT8(pMsg->slotDurations, p);
-        BSTREAM_TO_UINT8(pMsg->pktStatus, p);
-        BSTREAM_TO_UINT16(pMsg->connEvtCnt, p);
-        BSTREAM_TO_UINT8(pMsg->sampleCnt, p);
+      BSTREAM_TO_UINT8(pMsg->eventType, p);
+      BSTREAM_TO_UINT8(pMsg->addrType, p);
+      BSTREAM_TO_BDA(pMsg->addr, p);
+      BSTREAM_TO_UINT8(pMsg->directAddrType, p);
+      BSTREAM_TO_BDA(pMsg->directAddr, p);
+      BSTREAM_TO_UINT8(pMsg->rssi, p);
 
-        /* Copy IQ sample data to space after end of report struct */
-        pMsg->pISample = (int8_t *) (pMsg + 1);
-        memcpy(pMsg->pISample, p, pMsg->sampleCnt);
-        p += pMsg->sampleCnt;
+      /* zero out unused fields */
+      pMsg->len = 0;
+      pMsg->pData = NULL;
 
-        pMsg->pQSample = (int8_t *) (pMsg + 1)+HCI_IQ_RPT_SAMPLE_CNT_MAX;
-        memcpy(pMsg->pISample, p, pMsg->sampleCnt);
+      /* initialize message header */
+      pMsg->hdr.param = 0;
+      pMsg->hdr.event = HCI_LE_ADV_REPORT_CBACK_EVT;
+      pMsg->hdr.status = HCI_SUCCESS;
 
-        pMsg->hdr.param = pMsg->handle;
-        pMsg->hdr.status = pMsg->pktStatus;
-        pMsg->hdr.event = HCI_LE_CONN_IQ_REPORT_CBACK_EVT;
-        
-        /* execute callback */
-        (*hciCb.evtCback)((hciEvt_t *) pMsg);
-
-        /* free buffer */
-        WsfBufFree(pMsg);
+      /* execute callback */
+      (*hciCb.evtCback)((hciEvt_t *) pMsg);
     }
+
+    /* free buffer */
+    WsfBufFree(pMsg);
+  }
 }
 
+/*************************************************************************************************/
+/*!
+ *  \brief  Process an HCI LE connection IQ report event.
+ *
+ *  \param  p       Pointer to input HCI event parameter byte stream.
+ *  \param  len     Parameter byte stream length.
+ *
+ *  \return None.
+ */
+/*************************************************************************************************/
+static void hciEvtProcessLeConnIQReport(uint8_t *p, uint8_t len)
+{
+  hciLeConnIQReportEvt_t *pMsg;
+  uint8_t                sampleCnt;
+
+  HCI_TRACE_INFO0("HCI Conn IQ report");
+
+  /* get report sample count */
+  sampleCnt = p[HCI_CONN_IQ_RPT_SAMPLE_CNT_OFFSET];
+
+  /* sanity check on number of sample count; quit if invalid */
+  if ((sampleCnt < HCI_IQ_RPT_SAMPLE_CNT_MIN) || (sampleCnt > HCI_IQ_RPT_SAMPLE_CNT_MAX))
+  {
+    HCI_TRACE_WARN1("Invalid conn IQ report sample count: %d", sampleCnt);
+    return;
+  }
+
+  /* allocate temp buffer that can hold max length periodic adv report data */
+  if ((pMsg = WsfBufAlloc(sizeof(hciLeConnIQReportEvt_t) + (2 * sampleCnt))) != NULL)
+  {
+    /* parse report and execute callback */
+    BSTREAM_TO_UINT16(pMsg->handle, p);
+    BSTREAM_TO_UINT8(pMsg->rxPhy, p);
+    BSTREAM_TO_UINT8(pMsg->dataChIdx, p);
+    BSTREAM_TO_INT16(pMsg->rssi, p);
+    BSTREAM_TO_UINT8(pMsg->rssiAntennaId, p);
+    BSTREAM_TO_UINT8(pMsg->cteType, p);
+    BSTREAM_TO_UINT8(pMsg->slotDurations, p);
+    BSTREAM_TO_UINT8(pMsg->pktStatus, p);
+    BSTREAM_TO_UINT16(pMsg->connEvtCnt, p);
+    BSTREAM_TO_UINT8(pMsg->sampleCnt, p);
+
+    HCI_TRACE_INFO1("HCI Conn IQ report sample count: %d", pMsg->sampleCnt);
+
+    /* Copy I samples to space after end of report struct */
+    pMsg->pISample = (int8_t *)(pMsg + 1);
+    memcpy(pMsg->pISample, p, pMsg->sampleCnt);
+
+    /* Copy Q samples to space after I samples space */
+    pMsg->pQSample = (int8_t *)((uint8_t *) pMsg->pISample + pMsg->sampleCnt);
+    memcpy(pMsg->pQSample, (p + pMsg->sampleCnt), pMsg->sampleCnt);
+
+    /* initialize message header */
+    pMsg->hdr.param = pMsg->handle;
+    pMsg->hdr.event = HCI_LE_CONN_IQ_REPORT_CBACK_EVT;
+    pMsg->hdr.status = HCI_SUCCESS;
+
+    /* execute callback */
+    (*hciCb.evtCback)((hciEvt_t *) pMsg);
+
+    /* free buffer */
+    WsfBufFree(pMsg);
+  }
+}
 
 /*************************************************************************************************/
 /*!
@@ -1647,11 +1733,31 @@ static void hciEvtProcessLeConlessIQReport(uint8_t *p, uint8_t len)
     }
 }
 
+
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeSetConnCteRcvParm
+ *  \brief  Process an HCI LE CTE request failed event.
  *
- *  \brief  Parse an HCI LE set connection CTE receive parameters event
+ *  \param  pMsg    Pointer to output event message structure.
+ *  \param  status  Event status.
+ *  \param  opcode  Command opcode for this event.
+ *
+ *  \return None.
+ */
+/*************************************************************************************************/
+static void hciEvtParseLeCteReqFailed(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+{
+  BSTREAM_TO_UINT8(pMsg->leCteReqFailed.status, p);
+  BSTREAM_TO_UINT16(pMsg->leCteReqFailed.handle, p);
+
+  pMsg->hdr.param = pMsg->leCteReqFailed.handle;
+  pMsg->hdr.status = pMsg->leCteReqFailed.status;
+}
+
+/*************************************************************************************************/
+/*!
+ *  \brief  Parse an HCI Command Complete event for the LE set connection CTE receive parameters
+ *          command.
  *
  *  \param  pMsg    Pointer to output event message structure.
  *  \param  p       Pointer to input HCI event parameter byte stream.
@@ -1660,20 +1766,19 @@ static void hciEvtProcessLeConlessIQReport(uint8_t *p, uint8_t len)
  *  \return None.
  */
 /*************************************************************************************************/
-static void hciEvtParseLeSetConnCteRcvParm(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+static void hciEvtParseLeSetConnCteRxParamsCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 {
-    BSTREAM_TO_UINT8(pMsg->leSetConnCteRxParamsCmdCmpl.status, p);
-    BSTREAM_TO_UINT16(pMsg->leSetConnCteRxParamsCmdCmpl.handle, p);
-    
-    pMsg->hdr.status = pMsg->leSetConnCteRxParamsCmdCmpl.status;
-    pMsg->hdr.param = pMsg->leSetConnCteRxParamsCmdCmpl.handle;
+  BSTREAM_TO_UINT8(pMsg->leSetConnCteRxParamsCmdCmpl.status, p);
+  BSTREAM_TO_UINT16(pMsg->leSetConnCteRxParamsCmdCmpl.handle, p);
+
+  pMsg->hdr.status = pMsg->leSetConnCteRxParamsCmdCmpl.status;
+  pMsg->hdr.param = pMsg->leSetConnCteRxParamsCmdCmpl.handle;
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeSetConnCteTxParm
- *
- *  \brief  Parse an HCI LE set connection CTE transmit parameters event
+ *  \brief  Parse an HCI Command Complete event for the LE set connection CTE transmit parameters
+ *          command.
  *
  *  \param  pMsg    Pointer to output event message structure.
  *  \param  p       Pointer to input HCI event parameter byte stream.
@@ -1682,20 +1787,18 @@ static void hciEvtParseLeSetConnCteRcvParm(hciEvt_t *pMsg, uint8_t *p, uint8_t l
  *  \return None.
  */
 /*************************************************************************************************/
-static void hciEvtParseLeSetConnCteTxParm(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+static void hciEvtParseLeSetConnCteTxParamsCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 {
-    BSTREAM_TO_UINT8(pMsg->leSetConnCteTxParamsCmdCmpl.status, p);
-    BSTREAM_TO_UINT16(pMsg->leSetConnCteTxParamsCmdCmpl.handle, p);
-    
-    pMsg->hdr.status = pMsg->leSetConnCteTxParamsCmdCmpl.status;
-    pMsg->hdr.param = pMsg->leSetConnCteTxParamsCmdCmpl.handle;
+  BSTREAM_TO_UINT8(pMsg->leSetConnCteTxParamsCmdCmpl.status, p);
+  BSTREAM_TO_UINT16(pMsg->leSetConnCteTxParamsCmdCmpl.handle, p);
+
+  pMsg->hdr.status = pMsg->leSetConnCteTxParamsCmdCmpl.status;
+  pMsg->hdr.param = pMsg->leSetConnCteTxParamsCmdCmpl.handle;
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeConnCteReqEn
- *
- *  \brief  Parse an HCI LE set connection CTE request enable  event
+ *  \brief  Parse an HCI Command Complete event for the LE connection CTE request enable command.
  *
  *  \param  pMsg    Pointer to output event message structure.
  *  \param  p       Pointer to input HCI event parameter byte stream.
@@ -1704,20 +1807,18 @@ static void hciEvtParseLeSetConnCteTxParm(hciEvt_t *pMsg, uint8_t *p, uint8_t le
  *  \return None.
  */
 /*************************************************************************************************/
-static void hciEvtParseLeConnCteReqEn(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+static void hciEvtParseLeConnCteReqEnableCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 {
-    BSTREAM_TO_UINT8(pMsg->leConnCteReqEnableCmdCmpl.status, p);
-    BSTREAM_TO_UINT16(pMsg->leConnCteReqEnableCmdCmpl.handle, p);
-    
-    pMsg->hdr.status = pMsg->leConnCteReqEnableCmdCmpl.status;
-    pMsg->hdr.param = pMsg->leConnCteReqEnableCmdCmpl.handle;
+  BSTREAM_TO_UINT8(pMsg->leConnCteReqEnableCmdCmpl.status, p);
+  BSTREAM_TO_UINT16(pMsg->leConnCteReqEnableCmdCmpl.handle, p);
+
+  pMsg->hdr.status = pMsg->leConnCteReqEnableCmdCmpl.status;
+  pMsg->hdr.param = pMsg->leConnCteReqEnableCmdCmpl.handle;
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLeConnCteRspEn
- *
- *  \brief  Parse an HCI LE set connection CTE response enable  event
+ *  \brief  Parse an HCI Command Complete event for the LE connection CTE response enable command.
  *
  *  \param  pMsg    Pointer to output event message structure.
  *  \param  p       Pointer to input HCI event parameter byte stream.
@@ -1726,21 +1827,18 @@ static void hciEvtParseLeConnCteReqEn(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
  *  \return None.
  */
 /*************************************************************************************************/
-static void hciEvtParseLeConnCteRspEn(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+static void hciEvtParseLeConnCteRspEnableCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 {
-    BSTREAM_TO_UINT8(pMsg->leConnCteRspEnableCmdCmpl.status, p);
-    BSTREAM_TO_UINT16(pMsg->leConnCteRspEnableCmdCmpl.handle, p);
-    
-    pMsg->hdr.status = pMsg->leConnCteRspEnableCmdCmpl.status;
-    pMsg->hdr.param = pMsg->leConnCteRspEnableCmdCmpl.handle;
-}
+  BSTREAM_TO_UINT8(pMsg->leConnCteRspEnableCmdCmpl.status, p);
+  BSTREAM_TO_UINT16(pMsg->leConnCteRspEnableCmdCmpl.handle, p);
 
+  pMsg->hdr.status = pMsg->leConnCteRspEnableCmdCmpl.status;
+  pMsg->hdr.param = pMsg->leConnCteRspEnableCmdCmpl.handle;
+}
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtParseLePerAdvSyncLost
- *
- *  \brief  Parse an HCI LE periodic advertising synch lost event.
+ *  \brief  Parse an HCI Command Complete event for the LE read antenna information command.
  *
  *  \param  pMsg    Pointer to output event message structure.
  *  \param  p       Pointer to input HCI event parameter byte stream.
@@ -1749,74 +1847,19 @@ static void hciEvtParseLeConnCteRspEn(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
  *  \return None.
  */
 /*************************************************************************************************/
-static void hciEvtParseLePerAdvSyncLost(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
+static void hciEvtParseLeReadAntennaInfoCmdCmpl(hciEvt_t *pMsg, uint8_t *p, uint8_t len)
 {
-  BSTREAM_TO_UINT16(pMsg->lePerAdvSyncLost.syncHandle, p);
+  BSTREAM_TO_UINT8(pMsg->leReadAntennaInfoCmdCmpl.status, p);
+  BSTREAM_TO_UINT8(pMsg->leReadAntennaInfoCmdCmpl.switchSampleRates, p);
+  BSTREAM_TO_UINT8(pMsg->leReadAntennaInfoCmdCmpl.numAntennae, p);
+  BSTREAM_TO_UINT8(pMsg->leReadAntennaInfoCmdCmpl.switchPatternMaxLen, p);
+  BSTREAM_TO_UINT8(pMsg->leReadAntennaInfoCmdCmpl.cteMaxLen, p);
+
+  pMsg->hdr.status = pMsg->leReadAntennaInfoCmdCmpl.status;
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtProcessLeDirectAdvReport
- *
- *  \brief  Process an HCI LE direct advertising report.
- *
- *  \param  p    Buffer containing HCI event, points to start of parameters.
- *  \param  len  Parameter byte stream length.
- *
- *  \return None.
- */
-/*************************************************************************************************/
-static void hciEvtProcessLeDirectAdvReport(uint8_t *p, uint8_t len)
-{
-  hciLeAdvReportEvt_t *pMsg;
-  uint8_t             i;
-
-  /* get number of reports */
-  BSTREAM_TO_UINT8(i, p);
-
-  HCI_TRACE_INFO1("HCI Adv report, num reports: %d", i);
-
-  /* sanity check num reports */
-  if (i > HCI_MAX_REPORTS)
-  {
-    return;
-  }
-
-  /* allocate temp buffer that can hold max length adv/scan rsp data */
-  if ((pMsg = WsfBufAlloc(sizeof(hciLeAdvReportEvt_t))) != NULL)
-  {
-    /* parse each report and execute callback */
-    while (i-- > 0)
-    {
-      BSTREAM_TO_UINT8(pMsg->eventType, p);
-      BSTREAM_TO_UINT8(pMsg->addrType, p);
-      BSTREAM_TO_BDA(pMsg->addr, p);
-      BSTREAM_TO_UINT8(pMsg->directAddrType, p);
-      BSTREAM_TO_BDA(pMsg->directAddr, p);
-      BSTREAM_TO_UINT8(pMsg->rssi, p);
-
-      /* zero out unused fields */
-      pMsg->len = 0;
-      pMsg->pData = NULL;
-
-      /* initialize message header */
-      pMsg->hdr.param = 0;
-      pMsg->hdr.event = HCI_LE_ADV_REPORT_CBACK_EVT;
-      pMsg->hdr.status = 0;
-
-      /* execute callback */
-      (*hciCb.evtCback)((hciEvt_t *) pMsg);
-    }
-
-    /* free buffer */
-    WsfBufFree(pMsg);
-  }
-}
-
-/*************************************************************************************************/
-/*!
- *  \fn     hciEvtCmdStatusFailure
- *
  *  \brief  Process HCI command status event with failure status.
  *
  *  \param  status  Event status.
@@ -1827,6 +1870,24 @@ static void hciEvtProcessLeDirectAdvReport(uint8_t *p, uint8_t len)
 /*************************************************************************************************/
 void hciEvtCmdStatusFailure(uint8_t status, uint16_t opcode)
 {
+  switch(opcode)
+  {
+  case HCI_OPCODE_LE_GENERATE_DHKEY:
+  case HCI_OPCODE_LE_GENERATE_DHKEY_V2:
+    if (hciCb.secCback)
+    {
+      hciLeGenDhKeyEvt_t evt;
+
+      evt.hdr.event = HCI_LE_GENERATE_DHKEY_CMPL_CBACK_EVT;
+      evt.hdr.status = evt.status = status;
+
+      hciCb.secCback((hciEvt_t*) &evt);
+    }
+    break;
+
+  default:
+    break;
+  }
 #if 0
   handle these events:
   translate the command status event into other appropriate event
@@ -1837,36 +1898,10 @@ void hciEvtCmdStatusFailure(uint8_t status, uint16_t opcode)
   HCI_OPCODE_LE_START_ENCRYPTION
   HCI_OPCODE_READ_REMOTE_VER_INFO
 #endif
-
-  if((opcode == HCI_OPCODE_LE_GENERATE_DHKEY)&&(status==HCI_ERR_INVALID_PARAM))
-  {
-    hciEvt_t      *pMsg;
-    uint8_t       cbackEvt = 0;
-    hciEvtCback_t cback = hciCb.secCback;
-
-    cbackEvt = HCI_LE_GENERATE_DHKEY_CMPL_CBACK_EVT;
-   
-    /* allocate temp buffer */
-    if ((pMsg = WsfBufAlloc(sizeof(wsfMsgHdr_t))) != NULL)
-    {
-      /* initialize message header */
-      pMsg->hdr.param = 0;
-      pMsg->hdr.event = cbackEvt;
-      pMsg->hdr.status = status;
-
-      /* execute callback */
-      (*cback)(pMsg);
-
-      /* free buffer */
-      WsfBufFree(pMsg);
-    }
- }
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtProcessCmdStatus
- *
  *  \brief  Process HCI command status event.
  *
  *  \param  p    Buffer containing HCI event, points to start of parameters.
@@ -1896,8 +1931,6 @@ void hciEvtProcessCmdStatus(uint8_t *p)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtProcessCmdCmpl
- *
  *  \brief  Process HCI command complete event.
  *
  *  \param  p    Buffer containing command complete event, points to start of parameters.
@@ -2028,15 +2061,19 @@ void hciEvtProcessCmdCmpl(uint8_t *p, uint8_t len)
   case HCI_OPCODE_LE_SET_EXT_ADV_ENABLE:
     cbackEvt = HCI_LE_EXT_ADV_ENABLE_CMD_CMPL_CBACK_EVT;
     break;
-  
+
   case HCI_OPCODE_LE_SET_PER_ADV_ENABLE:
     cbackEvt = HCI_LE_PER_ADV_ENABLE_CMD_CMPL_CBACK_EVT;
+    break;
+
+  case HCI_OPCODE_LE_SET_RAND_ADDR:
+    cbackEvt = HCI_LE_SET_RAND_ADDR_CMD_CMPL_CBACK_EVT;
     break;
 
   case HCI_OPCODE_LE_SET_CONN_CTE_RX_PARAMS:
     cbackEvt = HCI_LE_SET_CONN_CTE_RX_PARAMS_CMD_CMPL_CBACK_EVT;
     break;
-    
+
   case HCI_OPCODE_LE_SET_CONN_CTE_TX_PARAMS:
     cbackEvt = HCI_LE_SET_CONN_CTE_TX_PARAMS_CMD_CMPL_CBACK_EVT;
     break;
@@ -2045,8 +2082,20 @@ void hciEvtProcessCmdCmpl(uint8_t *p, uint8_t len)
     cbackEvt = HCI_LE_CONN_CTE_REQ_ENABLE_CMD_CMPL_CBACK_EVT;
     break;
 
-  case HCI_OPCODE_LE_CONN_CTE_RSP_ENABLE:       
+  case HCI_OPCODE_LE_CONN_CTE_RSP_ENABLE:
     cbackEvt = HCI_LE_CONN_CTE_RSP_ENABLE_CMD_CMPL_CBACK_EVT;
+    break;
+
+  case HCI_OPCODE_LE_READ_ANTENNA_INFO:
+    cbackEvt = HCI_LE_READ_ANTENNA_INFO_CMD_CMPL_CBACK_EVT;
+
+    break;
+  case HCI_OPCODE_LE_PER_ADV_SYNC_TRANSFER:
+    cbackEvt = HCI_LE_PER_ADV_SYNC_TRSF_CMD_CMPL_CBACK_EVT;
+    break;
+
+  case HCI_OPCODE_LE_PER_ADV_SET_INFO_TRANSFER:
+    cbackEvt = HCI_LE_PER_ADV_SET_INFO_TRSF_CMD_CMPL_CBACK_EVT;
     break;
 
   default:
@@ -2067,7 +2116,7 @@ void hciEvtProcessCmdCmpl(uint8_t *p, uint8_t len)
       /* initialize message header */
       pMsg->hdr.param = 0;
       pMsg->hdr.event = cbackEvt;
-      pMsg->hdr.status = 0;
+      pMsg->hdr.status = HCI_SUCCESS;
 
       /* execute parsing function for the event */
       (*hciEvtParseFcnTbl[cbackEvt])(pMsg, p, len);
@@ -2085,8 +2134,6 @@ void hciEvtProcessCmdCmpl(uint8_t *p, uint8_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtProcessMsg
- *
  *  \brief  Process received HCI events.
  *
  *  \param  pEvt    Buffer containing HCI event.
@@ -2145,7 +2192,6 @@ void hciEvtProcessMsg(uint8_t *pEvt)
     case HCI_LE_META_EVT:
       BSTREAM_TO_UINT8(subEvt, pEvt);
       hciEvtStats.numLeMetaEvt++;
-      APP_TRACE_INFO1("LE meta sub event = 0x%x", subEvt);
       switch (subEvt)
       {
         case HCI_LE_CONN_CMPL_EVT:
@@ -2242,20 +2288,23 @@ void hciEvtProcessMsg(uint8_t *pEvt)
           cbackEvt = HCI_LE_PER_ADV_SYNC_LOST_CBACK_EVT;
           break;
 
+        case HCI_LE_PER_SYNC_TRSF_RCVD_EVT:
+          cbackEvt = HCI_LE_PER_SYNC_TRSF_RCVD_CBACK_EVT;
+          break;
+
         case HCI_LE_CONN_IQ_REPORT_EVT:
-          /* special case for LE Connection IQ report */
+          /* special case for connection IQ report */
           hciEvtProcessLeConnIQReport(pEvt, len);
-          
           break;
+
         case HCI_LE_CTE_REQ_FAILED_EVT:
-        APP_TRACE_INFO0("cte req failed....");
-        break;
-        case HCI_LE_CONNLESS_IQ_REPORT_EVT:
-          /* special case for LE Connectionless IQ report */
-          hciEvtProcessLeConlessIQReport(pEvt, len);
-          
+          cbackEvt = HCI_LE_CTE_REQ_FAILED_CBACK_EVT;
           break;
-          
+
+        case HCI_LE_CONNLESS_IQ_REPORT_EVT:
+          hciEvtProcessLeConlessIQReport(pEvt, len);
+          break;
+
         default:
           break;
       }
@@ -2308,8 +2357,15 @@ void hciEvtProcessMsg(uint8_t *pEvt)
 #endif
       hciEvtStats.numVendorSpecEvt++;
       cbackEvt = HCI_VENDOR_SPEC_CBACK_EVT;
+
+#ifdef WSF_DETOKEN_TRACE
+      if (WsfDetokenProcessHciEvent(len, pEvt))
+      {
+        cbackEvt = 0;
+      }
+#endif /* LL_DETOKEN_TRACE */
       break;
-     
+
     default:
       break;
   }
@@ -2323,7 +2379,7 @@ void hciEvtProcessMsg(uint8_t *pEvt)
       /* initialize message header */
       pMsg->hdr.param = 0;
       pMsg->hdr.event = cbackEvt;
-      pMsg->hdr.status = 0;
+      pMsg->hdr.status = HCI_SUCCESS;
 
       /* execute parsing function for the event */
       (*hciEvtParseFcnTbl[cbackEvt])(pMsg, pEvt, len);
@@ -2346,8 +2402,6 @@ void hciEvtProcessMsg(uint8_t *pEvt)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciEvtGetStats
- *
  *  \brief  Get event statistics.
  *
  *  \return Event statistics.

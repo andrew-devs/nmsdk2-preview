@@ -2,9 +2,9 @@
 /*!
  *  \file
  *
- *  \brief  HCI core platform-specific interfaces for dual-chip.
+ *  \brief  Pseudo-random number generator interface.
  *
- *  Copyright (c) 2013-2018 Arm Ltd.
+ *  Copyright (c) 2016-2018 Arm Ltd.
  *
  *  Copyright (c) 2019 Packetcraft, Inc.
  *
@@ -21,24 +21,43 @@
  *  limitations under the License.
  */
 /*************************************************************************************************/
-#ifndef HCI_CORE_PS_H
-#define HCI_CORE_PS_H
+
+#ifndef PRAND_H
+#define PRAND_H
+
+#include "wsf_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /**************************************************************************************************
-  Function Declarations
+  Functions
 **************************************************************************************************/
 
-void hciCoreResetSequence(uint8_t *pMsg);
-void hciCoreNumCmplPkts(uint8_t *pMsg);
-void hciCoreRecv(uint8_t msgType, uint8_t *pCoreRecvMsg);
-uint8_t hciCoreVsCmdCmplRcvd(uint16_t opcode, uint8_t *pMsg, uint8_t len);
+/*************************************************************************************************/
+/*!
+ *  \brief      Initialize random number generator.
+ *
+ *  \return     None.
+ */
+/*************************************************************************************************/
+void PrandInit(void);
+
+/*************************************************************************************************/
+/*!
+ *  \brief      Generate random data.
+ *
+ *  \param      pBuf        Storage for random data.
+ *  \param      len         Length of data to generate, in bytes.
+ *
+ *  \return     None.
+ */
+/*************************************************************************************************/
+void PrandGen(uint8_t *pBuf, uint16_t len);
 
 #ifdef __cplusplus
-};
+}
 #endif
 
-#endif /* HCI_CORE_PS_H */
+#endif /* PRAND_H */

@@ -1,10 +1,10 @@
 /*************************************************************************************************/
 /*!
- *  \file
+ *  \file   crc32.h
  *
- *  \brief  HCI core platform-specific interfaces for dual-chip.
+ *  \brief  CRC-32 utilities.
  *
- *  Copyright (c) 2013-2018 Arm Ltd.
+ *  Copyright (c) 2010-2018 Arm Ltd.
  *
  *  Copyright (c) 2019 Packetcraft, Inc.
  *
@@ -21,24 +21,37 @@
  *  limitations under the License.
  */
 /*************************************************************************************************/
-#ifndef HCI_CORE_PS_H
-#define HCI_CORE_PS_H
+#ifndef CRC32_H
+#define CRC32_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**************************************************************************************************
-  Function Declarations
-**************************************************************************************************/
+/*! \addtogroup WSF_UTIL_API
+ *  \{ */
 
-void hciCoreResetSequence(uint8_t *pMsg);
-void hciCoreNumCmplPkts(uint8_t *pMsg);
-void hciCoreRecv(uint8_t msgType, uint8_t *pCoreRecvMsg);
-uint8_t hciCoreVsCmdCmplRcvd(uint16_t opcode, uint8_t *pMsg, uint8_t len);
+/*************************************************************************************************/
+/*!
+ *  \brief  Calculate the CRC-32 of the given buffer.
+ *
+ *  \param  crcInit  Initial value of the CRC.
+ *  \param  len      Length of the buffer.
+ *  \param  pBuf     Buffer to compute the CRC.
+ *
+ *  \return None.
+ *
+ *  This routine was originally generated with crcmod.py using the following parameters:
+ *    - polynomial 0x104C11DB7
+ *    - bit reverse algorithm
+ */
+/*************************************************************************************************/
+uint32_t CalcCrc32(uint32_t crcInit, uint32_t len, const uint8_t *pBuf);
+
+/*! \} */    /* WSF_UTIL_API */
 
 #ifdef __cplusplus
 };
 #endif
 
-#endif /* HCI_CORE_PS_H */
+#endif /* CRC32_H */

@@ -1,8 +1,8 @@
 /*************************************************************************************************/
 /*!
- *  \file
+ *  \file   wsf_math.h
  *
- *  \brief  HCI core platform-specific interfaces for dual-chip.
+ *  \brief  Common math utilities.
  *
  *  Copyright (c) 2013-2018 Arm Ltd.
  *
@@ -21,24 +21,32 @@
  *  limitations under the License.
  */
 /*************************************************************************************************/
-#ifndef HCI_CORE_PS_H
-#define HCI_CORE_PS_H
+#ifndef WSF_MATH_H
+#define WSF_MATH_H
+
+#include "wsf_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/*! \addtogroup WSF_MATH_API
+ *  \{ */
+
 /**************************************************************************************************
-  Function Declarations
+  Macros
 **************************************************************************************************/
 
-void hciCoreResetSequence(uint8_t *pMsg);
-void hciCoreNumCmplPkts(uint8_t *pMsg);
-void hciCoreRecv(uint8_t msgType, uint8_t *pCoreRecvMsg);
-uint8_t hciCoreVsCmdCmplRcvd(uint16_t opcode, uint8_t *pMsg, uint8_t len);
+/*! \brief      Returns the minimum of two values. */
+#define WSF_MIN(a,b)        ((a) < (b) ? (a) : (b))
+
+/*! \brief      Returns the maximum of two values. */
+#define WSF_MAX(a,b)        ((a) > (b) ? (a) : (b))
+
+/*! \} */    /* WSF_MATH_API */
 
 #ifdef __cplusplus
 };
 #endif
 
-#endif /* HCI_CORE_PS_H */
+#endif /* WSF_MATH_H */

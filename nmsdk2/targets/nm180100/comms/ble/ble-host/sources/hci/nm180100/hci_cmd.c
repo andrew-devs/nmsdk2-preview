@@ -1,22 +1,27 @@
 /*************************************************************************************************/
 /*!
- *  \file   hci_cmd.c
+ *  \file
  *
  *  \brief  HCI command module.
  *
- *          $Date: 2016-12-28 16:12:14 -0600 (Wed, 28 Dec 2016) $
- *          $Revision: 10805 $
+ *  Copyright (c) 2009-2019 Arm Ltd.
  *
- *  Copyright (c) 2009-2017 ARM Ltd., all rights reserved.
- *  ARM Ltd. confidential and proprietary.
+ *  Copyright (c) 2019 Packetcraft, Inc.
  *
- *  IMPORTANT.  Your use of this file is governed by a Software License Agreement
- *  ("Agreement") that must be accepted in order to download or otherwise receive a
- *  copy of this file.  You may not use or copy this file for any purpose other than
- *  as described in the Agreement.  If you do not agree to all of the terms of the
- *  Agreement do not use this file and delete all copies in your possession or control;
- *  if you do not have a copy of the Agreement, you must contact ARM Ltd. prior
- *  to any use, copying or further distribution of this software.
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  This module builds and translates HCI command data structures. It also implements command
+ *  flow control.
  */
 /*************************************************************************************************/
 
@@ -26,16 +31,11 @@
 #include "wsf_timer.h"
 #include "wsf_msg.h"
 #include "wsf_trace.h"
-#include "bstream.h"
+#include "util/bstream.h"
 #include "hci_cmd.h"
 #include "hci_tr.h"
 #include "hci_api.h"
 #include "hci_main.h"
-#include <stdbool.h>
-#include "hci_drv_apollo.h"
-#include "dm_api.h"
-
-#include "am_mcu_apollo.h"
 
 /**************************************************************************************************
   Macros
@@ -66,8 +66,6 @@ hciCmdCb_t hciCmdCb;
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciCmdAlloc
- *
  *  \brief  Allocate an HCI command buffer and set the command header fields.
  *
  *  \param  opcode  Command opcode.
@@ -94,16 +92,14 @@ uint8_t *hciCmdAlloc(uint16_t opcode, uint16_t len)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciCmdSend
- *
  *  \brief  Send an HCI command and service the HCI command queue.
  *
  *  \param  pData  Buffer containing HCI command to send or NULL.
  *
- *  \return TRUE if any new or pending hci command sent successfully.
+ *  \return None.
  */
 /*************************************************************************************************/
-bool_t hciCmdSend(uint8_t *pData)
+void hciCmdSend(uint8_t *pData)
 {
   uint8_t         *p;
   wsfHandlerId_t  handlerId;
@@ -119,37 +115,25 @@ bool_t hciCmdSend(uint8_t *pData)
   if (hciCmdCb.numCmdPkts > 0)
   {
     /* if queue not empty */
-    if ((p = WsfMsgPeek(&hciCmdCb.cmdQueue, &handlerId)) != NULL)
+    if ((p = WsfMsgDeq(&hciCmdCb.cmdQueue, &handlerId)) != NULL)
     {
+      /* decrement controller command packet count */
+      hciCmdCb.numCmdPkts--;
+
+      /* store opcode of command we're sending */
+      BYTES_TO_UINT16(hciCmdCb.cmdOpcode, p);
+
+      /* start command timeout */
+      WsfTimerStartSec(&hciCmdCb.cmdTimer, HCI_CMD_TIMEOUT);
+
       /* send command to transport */
-      if (hciTrSendCmd(p) == TRUE)
-      {
-
-        /* remove from the queue*/
-        WsfMsgDeq(&hciCmdCb.cmdQueue, &handlerId);
-
-        /* decrement controller command packet count */
-        hciCmdCb.numCmdPkts--;
-
-        /* store opcode of command we're sending */
-        BYTES_TO_UINT16(hciCmdCb.cmdOpcode, p);
-
-        /* Free buffer here after dequeue */
-        WsfMsgFree(p);
-
-        /* start command timeout */
-        WsfTimerStartSec(&hciCmdCb.cmdTimer, HCI_CMD_TIMEOUT);
-        return TRUE;
-      }
+      hciTrSendCmd(p);
     }
   }
-  return FALSE;
 }
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciCmdInit
- *
  *  \brief  Initialize the HCI cmd module.
  *
  *  \return None.
@@ -169,8 +153,6 @@ void hciCmdInit(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciCmdTimeout
- *
  *  \brief  Process an HCI command timeout.
  *
  *  \return None.
@@ -178,11 +160,7 @@ void hciCmdInit(void)
 /*************************************************************************************************/
 void hciCmdTimeout(wsfMsgHdr_t *pMsg)
 {
-  HCI_TRACE_INFO1("hciCmdTimeout, opcode=0x%x", hciCmdCb.cmdOpcode);
-  // When it times out, pretty much we have to
-  // reset/reboot controller and initialize HCI
-  // layer and SPI transport layer again.
-
+  HCI_TRACE_INFO0("hciCmdTimeout");
   HciDrvRadioShutdown();
   HciDrvRadioBoot(0);
   DmDevReset();
@@ -190,8 +168,6 @@ void hciCmdTimeout(wsfMsgHdr_t *pMsg)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciCmdRecvCmpl
- *
  *  \brief  Process an HCI Command Complete or Command Status event.
  *
  *  \param  numCmdPkts  Number of commands that can be sent to the controller.
@@ -217,8 +193,6 @@ void hciCmdRecvCmpl(uint8_t numCmdPkts)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciDisconnectCmd
- *
  *  \brief  HCI disconnect command.
  */
 /*************************************************************************************************/
@@ -238,8 +212,6 @@ void HciDisconnectCmd(uint16_t handle, uint8_t reason)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeAddDevWhiteListCmd
- *
  *  \brief  HCI LE add device white list command.
  */
 /*************************************************************************************************/
@@ -259,8 +231,6 @@ void HciLeAddDevWhiteListCmd(uint8_t addrType, uint8_t *pAddr)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeClearWhiteListCmd
- *
  *  \brief  HCI LE clear white list command.
  *
  *  \return None.
@@ -278,8 +248,6 @@ void HciLeClearWhiteListCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeConnUpdateCmd
- *
  *  \brief  HCI connection update command.
  *
  *  \return None.
@@ -306,8 +274,6 @@ void HciLeConnUpdateCmd(uint16_t handle, hciConnSpec_t *pConnSpec)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeCreateConnCmd
- *
  *  \brief  HCI LE create connection command.
  *
  *  \return None.
@@ -341,8 +307,6 @@ void HciLeCreateConnCmd(uint16_t scanInterval, uint16_t scanWindow, uint8_t filt
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeCreateConnCancelCmd
- *
  *  \brief  HCI LE create connection cancel command.
  *
  *  \return None.
@@ -360,8 +324,6 @@ void HciLeCreateConnCancelCmd(void)
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciLeRemoteConnParamReqReply
-*
 *  \brief  HCI LE remote connection parameter request reply command.
 *
 *  \return None.
@@ -389,8 +351,6 @@ void HciLeRemoteConnParamReqReply(uint16_t handle, uint16_t intervalMin, uint16_
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciLeRemoteConnParamReqNegReply
-*
 *  \brief  HCI LE remote connection parameter request negative reply command.
 *
 *  \return None.
@@ -412,8 +372,6 @@ void HciLeRemoteConnParamReqNegReply(uint16_t handle, uint8_t reason)
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciLeSetDataLen
-*
 *  \brief  HCI LE set data len command.
 *
 *  \return None.
@@ -436,8 +394,6 @@ void HciLeSetDataLen(uint16_t handle, uint16_t txOctets, uint16_t txTime)
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciLeReadDefDataLen
-*
 *  \brief  HCI LE read suggested default data len command.
 *
 *  \return None.
@@ -455,8 +411,6 @@ void HciLeReadDefDataLen(void)
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciLeWriteDefDataLen
-*
 *  \brief  HCI LE write suggested default data len command.
 *
 *  \return None.
@@ -478,8 +432,6 @@ void HciLeWriteDefDataLen(uint16_t suggestedMaxTxOctets, uint16_t suggestedMaxTx
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciLeReadLocalP256PubKey
-*
 *  \brief  HCI LE read local P-256 public key command.
 *
 *  \return None.
@@ -497,8 +449,6 @@ void HciLeReadLocalP256PubKey(void)
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciLeGenerateDHKey
-*
 *  \brief  HCI LE generate DHKey command.
 *
 *  \return None.
@@ -520,8 +470,30 @@ void HciLeGenerateDHKey(uint8_t *pPubKeyX, uint8_t *pPubKeyY)
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciLeReadMaxDataLen
-*
+ *  \brief  HCI LE Generate DH Key Version 2 command.
+ *
+ *  \return None.
+ */
+/*************************************************************************************************/
+void HciLeGenerateDHKeyV2(uint8_t *pPubKeyX, uint8_t *pPubKeyY, uint8_t keyType)
+{
+  uint8_t *pBuf;
+  uint8_t *p;
+
+  if ((pBuf = hciCmdAlloc(HCI_OPCODE_LE_GENERATE_DHKEY_V2, HCI_LEN_LE_GENERATE_DHKEY_V2)) != NULL)
+  {
+    p = pBuf + HCI_CMD_HDR_LEN;
+    memcpy(p, pPubKeyX, HCI_DH_KEY_LEN);
+    p += HCI_DH_KEY_LEN;
+    memcpy(p, pPubKeyY, HCI_DH_KEY_LEN);
+    p += HCI_DH_KEY_LEN;
+    UINT8_TO_BSTREAM(p, keyType);
+    hciCmdSend(pBuf);
+  }
+}
+
+/*************************************************************************************************/
+/*!
 *  \brief  HCI LE read maximum data len command.
 *
 *  \return None.
@@ -539,8 +511,6 @@ void HciLeReadMaxDataLen(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeEncryptCmd
- *
  *  \brief  HCI LE encrypt command.
  *
  *  \return None.
@@ -563,8 +533,6 @@ void HciLeEncryptCmd(uint8_t *pKey, uint8_t *pData)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeLtkReqNegReplCmd
- *
  *  \brief  HCI LE long term key request negative reply command.
  *
  *  \return None.
@@ -585,8 +553,6 @@ void HciLeLtkReqNegReplCmd(uint16_t handle)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeLtkReqReplCmd
- *
  *  \brief  HCI LE long term key request reply command.
  *
  *  \return None.
@@ -608,8 +574,6 @@ void HciLeLtkReqReplCmd(uint16_t handle, uint8_t *pKey)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeRandCmd
- *
  *  \brief  HCI LE random command.
  *
  *  \return None.
@@ -627,8 +591,6 @@ void HciLeRandCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeReadAdvTXPowerCmd
- *
  *  \brief  HCI LE read advertising TX power command.
  *
  *  \return None.
@@ -646,8 +608,6 @@ void HciLeReadAdvTXPowerCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeReadBufSizeCmd
- *
  *  \brief  HCI LE read buffer size command.
  *
  *  \return None.
@@ -665,8 +625,6 @@ void HciLeReadBufSizeCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeReadChanMapCmd
- *
  *  \brief  HCI LE read channel map command.
  *
  *  \return None.
@@ -687,8 +645,6 @@ void HciLeReadChanMapCmd(uint16_t handle)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeReadLocalSupFeatCmd
- *
  *  \brief  HCI LE read local supported feautre command.
  *
  *  \return None.
@@ -706,8 +662,6 @@ void HciLeReadLocalSupFeatCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeReadRemoteFeatCmd
- *
  *  \brief  HCI LE read remote feature command.
  *
  *  \return None.
@@ -728,8 +682,6 @@ void HciLeReadRemoteFeatCmd(uint16_t handle)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeReadSupStatesCmd
- *
  *  \brief  HCI LE read supported states command.
  *
  *  \return None.
@@ -747,8 +699,6 @@ void HciLeReadSupStatesCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeReadWhiteListSizeCmd
- *
  *  \brief  HCI LE read white list size command.
  *
  *  \return None.
@@ -766,8 +716,6 @@ void HciLeReadWhiteListSizeCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeRemoveDevWhiteListCmd
- *
  *  \brief  HCI LE remove device white list command.
  *
  *  \return None.
@@ -789,8 +737,6 @@ void HciLeRemoveDevWhiteListCmd(uint8_t addrType, uint8_t *pAddr)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetAdvEnableCmd
- *
  *  \brief  HCI LE set advanced enable command.
  *
  *  \return None.
@@ -811,8 +757,6 @@ void HciLeSetAdvEnableCmd(uint8_t enable)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetAdvDataCmd
- *
  *  \brief  HCI LE set advertising data command.
  *
  *  \return None.
@@ -836,8 +780,6 @@ void HciLeSetAdvDataCmd(uint8_t len, uint8_t *pData)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetAdvParamCmd
- *
  *  \brief  HCI LE set advertising parameters command.
  *
  *  \return None.
@@ -866,6 +808,9 @@ void HciLeSetAdvParamCmd(uint16_t advIntervalMin, uint16_t advIntervalMax, uint8
     {
       p = BdaClr(p);
     }
+
+    /* Note: p cannot equal NULL here. */
+    /* coverity[dereference] */
     UINT8_TO_BSTREAM(p, advChanMap);
     UINT8_TO_BSTREAM(p, advFiltPolicy);
     hciCmdSend(pBuf);
@@ -874,8 +819,6 @@ void HciLeSetAdvParamCmd(uint16_t advIntervalMin, uint16_t advIntervalMax, uint8
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetEventMaskCmd
- *
  *  \brief  HCI LE set event mask command.
  *
  *  \return None.
@@ -896,8 +839,6 @@ void HciLeSetEventMaskCmd(uint8_t *pLeEventMask)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetHostChanClassCmd
- *
  *  \brief  HCI set host channel class command.
  *
  *  \return None.
@@ -918,8 +859,6 @@ void HciLeSetHostChanClassCmd(uint8_t *pChanMap)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetRandAddrCmd
- *
  *  \brief  HCI LE set random address command.
  *
  *  \return None.
@@ -940,8 +879,6 @@ void HciLeSetRandAddrCmd(uint8_t *pAddr)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetScanEnableCmd
- *
  *  \brief  HCI LE set scan enable command.
  *
  *  \return None.
@@ -963,8 +900,6 @@ void HciLeSetScanEnableCmd(uint8_t enable, uint8_t filterDup)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetScanParamCmd
- *
  *  \brief  HCI set scan parameters command.
  *
  *  \return None.
@@ -990,8 +925,6 @@ void HciLeSetScanParamCmd(uint8_t scanType, uint16_t scanInterval, uint16_t scan
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetScanRespDataCmd
- *
  *  \brief  HCI LE set scan response data.
  *
  *  \return None.
@@ -1015,8 +948,6 @@ void HciLeSetScanRespDataCmd(uint8_t len, uint8_t *pData)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeStartEncryptionCmd
- *
  *  \brief  HCI LE start encryption command.
  *
  *  \return None.
@@ -1041,8 +972,6 @@ void HciLeStartEncryptionCmd(uint16_t handle, uint8_t *pRand, uint16_t diversifi
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciReadBdAddrCmd
- *
  *  \brief  HCI read BD address command.
  *
  *  \return None.
@@ -1060,8 +989,6 @@ void HciReadBdAddrCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciReadBufSizeCmd
- *
  *  \brief  HCI read buffer size command.
  *
  *  \return None.
@@ -1079,8 +1006,6 @@ void HciReadBufSizeCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciReadLocalSupFeatCmd
- *
  *  \brief  HCI read local supported feature command.
  *
  *  \return None.
@@ -1098,8 +1023,6 @@ void HciReadLocalSupFeatCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciReadLocalVerInfoCmd
- *
  *  \brief  HCI read local version info command.
  *
  *  \return None.
@@ -1117,8 +1040,6 @@ void HciReadLocalVerInfoCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciReadRemoteVerInfoCmd
- *
  *  \brief  HCI read remote version info command.
  *
  *  \return None.
@@ -1139,8 +1060,6 @@ void HciReadRemoteVerInfoCmd(uint16_t handle)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciReadRssiCmd
- *
  *  \brief  HCI read RSSI command.
  *
  *  \return None.
@@ -1161,8 +1080,6 @@ void HciReadRssiCmd(uint16_t handle)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciReadTxPwrLvlCmd
- *
  *  \brief  HCI read Tx power level command.
  *
  *  \return None.
@@ -1184,32 +1101,6 @@ void HciReadTxPwrLvlCmd(uint16_t handle, uint8_t type)
 
 /*************************************************************************************************/
 /*!
- *  \fn     hciClearCmdQueue
- *
- *  \brief  Clears the command queue
- *
- *  \return None.
- */
-/*************************************************************************************************/
-void hciClearCmdQueue(void)
-{
-  uint8_t *pBuf;
-  wsfHandlerId_t  handlerId;
-
-  // Free up any unsent HCI commandss
-  while((pBuf = WsfMsgDeq(&hciCmdCb.cmdQueue, &handlerId)) != NULL)
-  {
-    WsfMsgFree(pBuf);
-  }
-
-  /* initialize numCmdPkts for special case of start the reset sequence */
-  hciCmdCb.numCmdPkts = 1;
-}
-
-/*************************************************************************************************/
-/*!
- *  \fn     HciResetCmd
- *
  *  \brief  HCI reset command.
  *
  *  \return None.
@@ -1218,14 +1109,9 @@ void hciClearCmdQueue(void)
 void HciResetCmd(void)
 {
   uint8_t *pBuf;
-  hciHwErrorEvt_t evt;
 
-  // let security module to clean up pending request/command
-  evt.hdr.event = HCI_HW_ERROR_CBACK_EVT;
-
-  hciCb.secCback((hciEvt_t *)&evt);
-
-  hciClearCmdQueue();
+  /* initialize numCmdPkts for special case of reset command */
+  hciCmdCb.numCmdPkts = 1;
 
   if ((pBuf = hciCmdAlloc(HCI_OPCODE_RESET, HCI_LEN_RESET)) != NULL)
   {
@@ -1235,8 +1121,6 @@ void HciResetCmd(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciSetEventMaskCmd
- *
  *  \brief  HCI set event mask command.
  *
  *  \return None.
@@ -1257,8 +1141,6 @@ void HciSetEventMaskCmd(uint8_t *pEventMask)
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciSetEventMaskPage2Cmd
-*
 *  \brief  HCI set event mask page 2 command.
 *
 *  \return None.
@@ -1279,8 +1161,6 @@ void HciSetEventMaskPage2Cmd(uint8_t *pEventMask)
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciReadAuthPayloadTimeout
-*
 *  \brief  HCI read authenticated payload timeout command.
 *
 *  \param  handle    Connection handle.
@@ -1303,8 +1183,6 @@ void HciReadAuthPayloadTimeout(uint16_t handle)
 
 /*************************************************************************************************/
 /*!
-*  \fn     HciWriteAuthPayloadTimeout
-*
 *  \brief  HCI write authenticated payload timeout command.
 *
 *  \param  handle    Connection handle.
@@ -1329,8 +1207,6 @@ void HciWriteAuthPayloadTimeout(uint16_t handle, uint16_t timeout)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeAddDeviceToResolvingListCmd
- *
  *  \brief  HCI add device to resolving list command.
  *
  *  \param  peerAddrType        Peer identity address type.
@@ -1361,8 +1237,6 @@ void HciLeAddDeviceToResolvingListCmd(uint8_t peerAddrType, const uint8_t *pPeer
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeRemoveDeviceFromResolvingList
- *
  *  \brief  HCI remove device from resolving list command.
  *
  *  \param  peerAddrType        Peer identity address type.
@@ -1387,8 +1261,6 @@ void HciLeRemoveDeviceFromResolvingList(uint8_t peerAddrType, const uint8_t *pPe
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeClearResolvingList
- *
  *  \brief  HCI clear resolving list command.
  *
  *  \return None.
@@ -1406,8 +1278,6 @@ void HciLeClearResolvingList(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeReadResolvingListSize
- *
  *  \brief  HCI read resolving list command.
  *
  *  \return None.
@@ -1425,8 +1295,6 @@ void HciLeReadResolvingListSize(void)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeReadPeerResolvableAddr
- *
  *  \brief  HCI read peer resolvable address command.
  *
  *  \param  addrType        Peer identity address type.
@@ -1451,8 +1319,6 @@ void HciLeReadPeerResolvableAddr(uint8_t addrType, const uint8_t *pIdentityAddr)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeReadLocalResolvableAddr
- *
  *  \brief  HCI read local resolvable address command.
  *
  *  \param  addrType        Peer identity address type.
@@ -1477,8 +1343,6 @@ void HciLeReadLocalResolvableAddr(uint8_t addrType, const uint8_t *pIdentityAddr
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetAddrResolutionEnable
- *
  *  \brief  HCI enable or disable address resolution command.
  *
  *  \param  enable      Set to TRUE to enable address resolution or FALSE to disable address
@@ -1502,8 +1366,6 @@ void HciLeSetAddrResolutionEnable(uint8_t enable)
 
 /*************************************************************************************************/
 /*!
- *  \fn     HciLeSetResolvablePrivateAddrTimeout
- *
  *  \brief  HCI set resolvable private address timeout command.
  *
  *  \param  rpaTimeout    Timeout measured in seconds.
@@ -1526,8 +1388,6 @@ void HciLeSetResolvablePrivateAddrTimeout(uint16_t rpaTimeout)
 
 /*************************************************************************************************/
 /*!
- *  \fn         HciLeSetPrivacyModeCmd
- *
  *  \brief      HCI LE set privacy mode command.
  *
  *  \param      peerAddrType    Peer identity address type.
@@ -1552,6 +1412,25 @@ void HciLeSetPrivacyModeCmd(uint8_t addrType, uint8_t *pAddr, uint8_t mode)
   }
 }
 
+/*************************************************************************************************/
+/*!
+ *  \brief  HCI vencor specific command.
+ *
+ *  \return None.
+ */
+/*************************************************************************************************/
+void HciVendorSpecificCmd(uint16_t opcode, uint8_t len, uint8_t *pData)
+{
+  uint8_t *pBuf;
+  uint8_t *p;
+
+  if ((pBuf = hciCmdAlloc(opcode, len)) != NULL)
+  {
+    p = pBuf + HCI_CMD_HDR_LEN;
+    memcpy(p, pData, len);
+    hciCmdSend(pBuf);
+  }
+}
 
 /*************************************************************************************************/
 /*!
@@ -1576,7 +1455,6 @@ void HciLeReceiverTestCmd(uint8_t RX_Channel)
     hciCmdSend(pBuf);
   }
 }
-
 
 /*************************************************************************************************/
 /*!
@@ -1606,7 +1484,6 @@ void HciLeTransmitterTestCmd(uint8_t TX_Channel, uint8_t len_of_test_data, uint8
   }
 }
 
-
 /*************************************************************************************************/
 /*!
  *  \fn         HciLeTestEndCmd
@@ -1627,7 +1504,6 @@ void HciLeTestEndCmd(void)
     hciCmdSend(pBuf);
   }
 }
-
 
 /*************************************************************************************************/
 /*!
@@ -1690,26 +1566,3 @@ void HciLeTransmitterTestCmdV3(hciLeTxTestV3Cmd_t *tx_test_v3)
         hciCmdSend(pBuf);
     }
 }
-
-/*************************************************************************************************/
-/*!
- *  \fn     HciVendorSpecificCmd
- *
- *  \brief  HCI vencor specific command.
- *
- *  \return None.
- */
-/*************************************************************************************************/
-void HciVendorSpecificCmd(uint16_t opcode, uint8_t len, uint8_t *pData)
-{
-  uint8_t *pBuf;
-  uint8_t *p;
-
-  if ((pBuf = hciCmdAlloc(opcode, len)) != NULL)
-  {
-    p = pBuf + HCI_CMD_HDR_LEN;
-    memcpy(p, pData, len);
-    hciCmdSend(pBuf);
-  }
-}
-

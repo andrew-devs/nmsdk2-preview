@@ -1,10 +1,10 @@
 /*************************************************************************************************/
 /*!
- *  \file
+ *  \file   print.h
  *
- *  \brief  HCI core platform-specific interfaces for dual-chip.
+ *  \brief  Print functions.
  *
- *  Copyright (c) 2013-2018 Arm Ltd.
+ *  Copyright (c) 2015-2018 Arm Ltd.
  *
  *  Copyright (c) 2019 Packetcraft, Inc.
  *
@@ -21,24 +21,42 @@
  *  limitations under the License.
  */
 /*************************************************************************************************/
-#ifndef HCI_CORE_PS_H
-#define HCI_CORE_PS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef PRINT_H
+#define PRINT_H
+
+#include <stdarg.h>
+
+#include "wsf_types.h"
+
+/*! \addtogroup WSF_UTIL_API
+ *  \{ */
 
 /**************************************************************************************************
-  Function Declarations
+  Macros
 **************************************************************************************************/
 
-void hciCoreResetSequence(uint8_t *pMsg);
-void hciCoreNumCmplPkts(uint8_t *pMsg);
-void hciCoreRecv(uint8_t msgType, uint8_t *pCoreRecvMsg);
-uint8_t hciCoreVsCmdCmplRcvd(uint16_t opcode, uint8_t *pMsg, uint8_t len);
-
-#ifdef __cplusplus
-};
+/*! \brief  Print function attributes. */
+#if defined(__GNUC__) || defined(__CC_ARM)
+#define PRINT_ATTRIBUTE(a, b) __attribute__((format(printf, a, b)))
+#else
+#define PRINT_ATTRIBUTE(a, b)
 #endif
 
-#endif /* HCI_CORE_PS_H */
+/*************************************************************************************************/
+/*!
+ *  \brief  Print a trace message.
+ *
+ *  \param  pStr      Storage for formatted string.
+ *  \param  size      Maximum number of characters to store.
+ *  \param  pFmt      Format string.
+ *  \param  ap        Arguments.
+ *
+ *  \return Number of characters stored.
+ */
+/*************************************************************************************************/
+uint32_t PrintVsn(char *pStr, uint32_t size, const char *pFmt, va_list ap) PRINT_ATTRIBUTE(3, 0);
+
+/*! \} */    /* WSF_UTIL_API */
+
+#endif /* PRINT_H */

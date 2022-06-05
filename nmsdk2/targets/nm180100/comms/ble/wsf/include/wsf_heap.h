@@ -1,10 +1,10 @@
 /*************************************************************************************************/
 /*!
- *  \file   hci_tr.c
+ *  \file   wsf_heap.h
  *
- *  \brief  HCI transport module.
+ *  \brief  Buffer heap service.
  *
- *  Copyright (c) 2011-2018 Arm Ltd.
+ *  Copyright (c) 2018 Arm Ltd.
  *
  *  Copyright (c) 2019 Packetcraft, Inc.
  *
@@ -21,84 +21,59 @@
  *  limitations under the License.
  */
 /*************************************************************************************************/
+#ifndef WSF_HEAP_H
+#define WSF_HEAP_H
 
-#include <string.h>
-#include "wsf_types.h"
-#include "wsf_msg.h"
-#include "util/bstream.h"
-#include "hci_api.h"
-#include "hci_core.h"
-#include "hci_tr.h"
-#include "ll_api.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/*************************************************************************************************/
-/*!
- *  \brief  Send a complete HCI ACL packet to the transport.
- *
- *  \param  pContext    Connection context.
- *  \param  pAclData    WSF msg buffer containing an ACL packet.
- *
- *  \return None.
- */
-/*************************************************************************************************/
-void hciTrSendAclData(void *pContext, uint8_t *pAclData)
-{
-  uint16_t   len;
-
-  /* get 16-bit length */
-  BYTES_TO_UINT16(len, &pAclData[2]);
-  len += HCI_ACL_HDR_LEN;
-
-  /* transmit ACL header and data */
-  hciDrvWrite(HCI_ACL_TYPE, len, pAclData);
-}
+/*! \addtogroup WSF_HEAP_API
+ *  \{ */
 
 /*************************************************************************************************/
 /*!
- *  \brief  Send a complete HCI command to the transport.
+ *  \brief      Get heap available.
  *
- *  \param  pCmdData    WSF msg buffer containing an HCI command.
- *
- *  \return None.
+ *  \return     Number of bytes of heap memory available.
  */
 /*************************************************************************************************/
-void hciTrSendCmd(uint8_t *pCmdData)
-{
-  uint16_t   len;
-
-  /* get 16-bit length */
-  BYTES_TO_UINT16(len, &pCmdData[2]);
-  len += HCI_ACL_HDR_LEN;
-
-  /* transmit ACL header and data */
-  hciDrvWrite(HCI_CMD_TYPE, len, pCmdData);
-}
+uint32_t WsfHeapCountAvailable(void);
 
 /*************************************************************************************************/
 /*!
- *  \brief  Initialize HCI transport resources.
+ *  \brief      Get heap used.
  *
- *  \param  port        COM port.
- *  \param  baudRate    Baud rate.
- *  \param  flowControl TRUE if flow control is enabled
- *
- *  \return TRUE if initialization succeeds, FALSE otherwise.
+ *  \return     Number of bytes of heap memory used.
  */
 /*************************************************************************************************/
-bool_t hciTrInit(uint8_t port, uint32_t baudRate, bool_t flowControl)
-{
-  return TRUE;
-}
+uint32_t WsfHeapCountUsed(void);
 
 /*************************************************************************************************/
 /*!
- *  \brief  Close HCI transport resources.
+ *  \brief      Reserve heap memory.
  *
- *  \return None.
+ *  \param      size    Number of bytes of heap memory used.
+ *
+ *  \return     None
  */
 /*************************************************************************************************/
-void hciTrShutdown(void)
-{
+void WsfHeapAlloc(uint32_t size);
 
-}
+/*************************************************************************************************/
+/*!
+ *  \brief      Get next available heap memory.
+ *
+ *  \return     Address of the start of heap memory.
+ */
+/*************************************************************************************************/
+void *WsfHeapGetFreeStartAddress(void);
+
+/*! \} */    /* WSF_HEAP_API */
+
+#ifdef __cplusplus
+};
+#endif
+
+#endif /* WSF_HEAP_H */
 
