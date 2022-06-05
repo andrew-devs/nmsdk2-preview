@@ -25,7 +25,6 @@
 #define SEC_MAIN_H
 
 #include "hci_api.h"
-#include "pal_crypto.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -21,6 +21,10 @@
  *  limitations under the License.
  */
 /*************************************************************************************************/
+#include "am_mcu_apollo.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include "wsf_types.h"
 #include "wsf_queue.h"
@@ -28,65 +32,17 @@
 #include "wsf_assert.h"
 #include "wsf_cs.h"
 #include "wsf_trace.h"
-#include "pal_rtc.h"
-#include "pal_led.h"
-#include "pal_sys.h"
 
-/**************************************************************************************************
-  Macros
-**************************************************************************************************/
+#define CLOCK_PERIOD      32768
+#define CLOCK_SOURCE      AM_HAL_STIMER_XTAL_32KHZ
 
-#if (WSF_MS_PER_TICK == 10)
 /* convert seconds to timer ticks */
-#define WSF_TIMER_SEC_TO_TICKS(sec)         (100 * (sec) + 1)
+#define WSF_TIMER_SEC_TO_TICKS(sec)         ((1000 / WSF_MS_PER_TICK) * (sec))
 
 /* convert milliseconds to timer ticks */
-/* Extra tick should be added to guarantee waiting time is longer than the specified ms. */
-#define WSF_TIMER_MS_TO_TICKS(ms)           (((uint32_t)(((uint64_t)(ms) * (uint64_t)(419431)) >> 22)) + 1)
+#define WSF_TIMER_MS_TO_TICKS(ms)           ((ms) / WSF_MS_PER_TICK)
 
-/*! \brief  WSF timer ticks per second. */
-#define WSF_TIMER_TICKS_PER_SEC       (1000 / WSF_MS_PER_TICK)
-
-#elif (WSF_MS_PER_TICK == 1)
-/* convert seconds to timer ticks */
-#define WSF_TIMER_SEC_TO_TICKS(sec)         (1000 * (sec) + 1)
-
-/* convert milliseconds to timer ticks */
-/* Extra tick should be added to guarantee waiting time is longer than the specified ms. */
-#define WSF_TIMER_MS_TO_TICKS(ms)           ((uint64_t)ms + 1)
-
-#define WSF_TIMER_TICKS_PER_SEC             (1000)
-
-#else
-#error "WSF_TIMER_MS_TO_TICKS() and WSF_TIMER_SEC_TO_TICKS not defined for WSF_MS_PER_TICK"
-#endif
-
-/*! \brief  Number of RTC ticks per WSF timer tick. */
-#define WSF_TIMER_RTC_TICKS_PER_WSF_TICK  ((PAL_RTC_TICKS_PER_SEC + WSF_TIMER_TICKS_PER_SEC - 1) / (WSF_TIMER_TICKS_PER_SEC))
-
-/*! \brief  Calculate number of elapsed WSF timer ticks. */
-#define WSF_RTC_TICKS_TO_WSF(x) ((x) / WSF_TIMER_RTC_TICKS_PER_WSF_TICK)
-
-/*! \brief  Mask of seconds part in RTC ticks. */
-#define WSF_TIMER_RTC_TICKS_SEC_MASK      (0x00FF8000)
-
-/*! \brief  Addition of RTC ticks. */
-#define WSF_TIMER_RTC_ADD_TICKS(x, y)     (((x) + (y)) & PAL_MAX_RTC_COUNTER_VAL)
-
-/*! \brief  Subtraction of RTC ticks. */
-#define WSF_TIMER_RTC_SUB_TICKS(x, y)     ((PAL_MAX_RTC_COUNTER_VAL + 1 + (x) - (y)) & PAL_MAX_RTC_COUNTER_VAL)
-
-/*! \brief  Minimum RTC ticks required to go into sleep. */
-#define WSF_TIMER_MIN_RTC_TICKS_FOR_SLEEP (2)
-
-/*!
- * \brief  Computing the difference between two RTC counter values.
- *
- * Calculate elapsed ticks since last WSF timer update, with remainder;
- * since the RTC timer is 24 bit set the 24th bit to handle any underflow.
- */
-#define WSF_TIMER_RTC_ELAPSED_TICKS(x)    ((PAL_MAX_RTC_COUNTER_VAL + 1 + x - wsfTimerRtcLastTicks \
-                                  + wsfTimerRtcRemainder) & PAL_MAX_RTC_COUNTER_VAL)
+#define CLK_TICKS_PER_WSF_TICKS             (WSF_MS_PER_TICK*CLOCK_PERIOD / 1000)
 
 /**************************************************************************************************
   Global Variables
@@ -97,8 +53,22 @@ wsfQueue_t  wsfTimerTimerQueue;     /*!< Timer queue */
 /*! \brief  Last RTC value read. */
 static uint32_t wsfTimerRtcLastTicks = 0;
 
-/*! \brief  Remainder value. */
-static uint32_t wsfTimerRtcRemainder = 0;
+void am_stimer_cmpr4_isr(void)
+{
+  am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREE);
+
+  am_hal_stimer_int_disable(AM_HAL_STIMER_INT_COMPAREF);
+  am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREF);
+
+  WsfTaskSetReady(0, WSF_TIMER_EVENT);
+}
+
+void am_stimer_cmpr5_isr(void)
+{
+  am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREF);
+
+  WsfTaskSetReady(0, WSF_TIMER_EVENT);
+}
 
 /*************************************************************************************************/
 /*!
@@ -185,21 +155,6 @@ static void wsfTimerInsert(wsfTimer_t *pTimer, wsfTimerTicks_t ticks)
 
 /*************************************************************************************************/
 /*!
- *  \brief  Convert WSF ticks into RTC ticks.
- *
- *  \return Number of RTC ticks
- */
-/*************************************************************************************************/
-static uint32_t wsfTimerTicksToRtc(wsfTimerTicks_t wsfTicks)
-{
-  uint32_t numSec = wsfTicks / WSF_TIMER_TICKS_PER_SEC;
-  uint32_t remainder = wsfTicks - numSec * WSF_TIMER_TICKS_PER_SEC;
-
-  return ((numSec * PAL_RTC_TICKS_PER_SEC) + (remainder * WSF_TIMER_RTC_TICKS_PER_WSF_TICK));
-}
-
-/*************************************************************************************************/
-/*!
  *  \brief  Initialize the timer service.  This function should only be called once
  *          upon system initialization.
  *
@@ -210,8 +165,22 @@ void WsfTimerInit(void)
 {
   WSF_QUEUE_INIT(&wsfTimerTimerQueue);
 
-  wsfTimerRtcLastTicks = PalRtcCounterGet();
-  wsfTimerRtcRemainder = 0;
+  am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREE);
+  am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREF);
+  NVIC_EnableIRQ(STIMER_CMPR4_IRQn);
+  NVIC_EnableIRQ(STIMER_CMPR5_IRQn);
+
+  uint32_t oldCfg = am_hal_stimer_config(AM_HAL_STIMER_CFG_FREEZE);
+
+  am_hal_stimer_config(
+      (oldCfg & ~(AM_HAL_STIMER_CFG_FREEZE | CTIMER_STCFG_CLKSEL_Msk))
+      | CLOCK_SOURCE
+      | AM_HAL_STIMER_CFG_COMPARE_E_ENABLE
+      | AM_HAL_STIMER_CFG_COMPARE_F_ENABLE
+      );
+
+
+  wsfTimerRtcLastTicks = am_hal_stimer_counter_get();
 }
 
 /*************************************************************************************************/
@@ -403,66 +372,33 @@ wsfTimer_t *WsfTimerServiceExpired(wsfTaskId_t taskId)
 void WsfTimerSleep(void)
 {
   wsfTimerTicks_t nextExpiration;
-  bool_t          timerRunning;
+  bool_t bTimerRunning;
 
-  /* If PAL system is busy, no need to sleep. */
-  if (PalSysIsBusy())
+  nextExpiration = WsfTimerNextExpiration(&bTimerRunning);
+
+  if (nextExpiration > 0)
   {
-    return;
-  }
+    uint32_t sleep_ticks = nextExpiration * CLK_TICKS_PER_WSF_TICKS;
+    am_hal_stimer_compare_delta_set(4, sleep_ticks);
+    am_hal_stimer_compare_delta_set(5, sleep_ticks+1);
 
-  nextExpiration = WsfTimerNextExpiration(&timerRunning);
+    /* enable RTC interrupt */
+    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREE);
+    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREF);
 
-  if (timerRunning && (nextExpiration > 0))
-  {
-    uint32_t awake = wsfTimerTicksToRtc(nextExpiration);
-    uint32_t rtcCurrentTicks = PalRtcCounterGet();
-    uint32_t elapsed = WSF_TIMER_RTC_ELAPSED_TICKS(rtcCurrentTicks);
-
-    /* if we have time to sleep before timer expiration */
-    if ((awake - elapsed) > WSF_TIMER_MIN_RTC_TICKS_FOR_SLEEP)
-    {
-      uint32_t compareVal = (rtcCurrentTicks + awake - elapsed) & PAL_MAX_RTC_COUNTER_VAL;
-
-      /* set RTC timer compare */
-      PalRtcCompareSet(compareVal);
-
-      /* enable RTC interrupt */
-      PalRtcEnableCompareIrq();
-
-      /* one final check for OS activity then enter sleep */
-      WSF_CS_ENTER(cs);
-      if (wsfOsReadyToSleep() && (PalRtcCounterGet() != PalRtcCompareGet()))
-      {
-        PalLedOff(PAL_LED_ID_CPU_ACTIVE);
-        PalSysSleep();
-        PalLedOn(PAL_LED_ID_CPU_ACTIVE);
-      }
-      WSF_CS_EXIT(cs);
-    }
-    else
-    {
-      /* Not enough time to go to sleep. Let the system run till the pending timer expires. */
-      LL_TRACE_WARN0("WsfTimerSleep, not enough time to sleep");
-    }
+    am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREE);
+    am_hal_stimer_int_enable(AM_HAL_STIMER_INT_COMPAREF);
   }
   else
   {
-    /* disable RTC interrupt */
-    PalRtcDisableCompareIrq();
+    am_hal_stimer_int_disable(AM_HAL_STIMER_INT_COMPAREE);
+    am_hal_stimer_int_disable(AM_HAL_STIMER_INT_COMPAREF);
 
-    /* one final check for OS activity then enter sleep */
-    WSF_CS_ENTER(cs);
-    if (wsfOsReadyToSleep())
-    {
-      PalLedOff(PAL_LED_ID_CPU_ACTIVE);
-      PalSysSleep();
-      PalLedOn(PAL_LED_ID_CPU_ACTIVE);
-    }
-    WSF_CS_EXIT(cs);
+    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREE);
+    am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREF);
   }
+  xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
 }
-
 
 /*************************************************************************************************/
 /*!
@@ -475,48 +411,24 @@ void WsfTimerSleepUpdate(void)
 {
   uint32_t        elapsed;
   wsfTimerTicks_t wsfElapsed = 0;
-  uint32_t        secBoundary, prevBoundary;
 
   /* Get current RTC tick count. */
-  uint32_t rtcCurrentTicks = PalRtcCounterGet();
+  uint32_t current_ticks = am_hal_stimer_counter_get();
 
-  if (rtcCurrentTicks != wsfTimerRtcLastTicks)
+  if (current_ticks != wsfTimerRtcLastTicks)
   {
-    /* Check if RTC ticks go beyond seconds boundary. */
-    if ((rtcCurrentTicks & WSF_TIMER_RTC_TICKS_SEC_MASK) != (wsfTimerRtcLastTicks & WSF_TIMER_RTC_TICKS_SEC_MASK))
-    {
-      /* Calculate current and previous second boundary */
-      secBoundary = WSF_TIMER_RTC_ADD_TICKS((wsfTimerRtcLastTicks & WSF_TIMER_RTC_TICKS_SEC_MASK), PAL_RTC_TICKS_PER_SEC);
-      prevBoundary = WSF_TIMER_RTC_SUB_TICKS(secBoundary, PAL_RTC_TICKS_PER_SEC);
+    elapsed = current_ticks - wsfTimerRtcLastTicks;
 
-      /* Check how many wsf ticks were already counted in this second. */
-      /* Claim all uncounted wsf ticks within the second. */
-      wsfElapsed += (WSF_TIMER_TICKS_PER_SEC - WSF_RTC_TICKS_TO_WSF(WSF_TIMER_RTC_SUB_TICKS(wsfTimerRtcLastTicks, prevBoundary)));
-
-      while (WSF_TIMER_RTC_SUB_TICKS(rtcCurrentTicks, secBoundary) >= PAL_RTC_TICKS_PER_SEC)
-      {
-        wsfElapsed += WSF_TIMER_TICKS_PER_SEC;
-        secBoundary = WSF_TIMER_RTC_ADD_TICKS(secBoundary, PAL_RTC_TICKS_PER_SEC);
-      }
-
-      wsfTimerRtcRemainder = 0;
-      wsfTimerRtcLastTicks = secBoundary;
-    }
-
-    /* Elapsed must be less than PAL_RTC_TICKS_PER_SEC at this point. */
-    elapsed = WSF_TIMER_RTC_ELAPSED_TICKS(rtcCurrentTicks);
-
-    /* Rough conversion from RTC ticks to WFS ticks. It will be synchronized at the end of each second boundary. */
-    wsfElapsed += (wsfTimerTicks_t) WSF_RTC_TICKS_TO_WSF(elapsed);
+    wsfElapsed = elapsed / CLK_TICKS_PER_WSF_TICKS;
 
     if (wsfElapsed)
     {
-      /* update last ticks and remainder */
-      wsfTimerRtcLastTicks = rtcCurrentTicks;
-      wsfTimerRtcRemainder = elapsed - (WSF_RTC_TICKS_TO_WSF(elapsed) *  WSF_TIMER_RTC_TICKS_PER_WSF_TICK);
+      /* update last ticks */
+      wsfTimerRtcLastTicks = current_ticks;
 
       /* update wsf timers */
       WsfTimerUpdate(wsfElapsed);
     }
   }
+
 }

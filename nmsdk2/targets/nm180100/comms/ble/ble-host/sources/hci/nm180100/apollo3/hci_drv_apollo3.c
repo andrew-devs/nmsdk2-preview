@@ -54,7 +54,6 @@
 #include "wsf_cs.h"
 #include "hci_drv.h"
 #include "hci_drv_apollo.h"
-#include "hci_tr_apollo.h"
 #include "hci_core.h"
 #include "dm_api.h"
 

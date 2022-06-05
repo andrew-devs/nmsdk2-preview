@@ -21,6 +21,8 @@
  *  limitations under the License.
  */
 /*************************************************************************************************/
+#include "FreeRTOS.h"
+#include "task.h"
 
 #ifdef __IAR_SYSTEMS_ICC__
 #include <intrinsics.h>
@@ -91,6 +93,32 @@ wsfOs_t wsfOs;
 wsfHandlerId_t WsfActiveHandler;
 #endif /* WSF_OS_DIAG */
 
+static TaskHandle_t WsfTaskHandle;
+
+static void wsfOsWake()
+{
+  if (WsfTaskHandle)
+  {
+    BaseType_t xHigherPriorityTaskWoken;
+    if (xPortIsInsideInterrupt() == pdTRUE)
+    {
+      xHigherPriorityTaskWoken = pdFALSE;
+      xTaskNotifyFromISR(
+        WsfTaskHandle,
+        0,
+        eNoAction,
+        &xHigherPriorityTaskWoken
+      );
+
+      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    else
+    {
+      xTaskNotify(WsfTaskHandle, 0, eNoAction);
+    }
+  }
+}
+
 /*************************************************************************************************/
 /*!
  *  \brief  Lock task scheduling.
@@ -139,6 +167,7 @@ void WsfSetEvent(wsfHandlerId_t handlerId, wsfEventMask_t event)
   WSF_CS_EXIT(cs);
 
   /* set event in OS */
+  wsfOsWake();
 }
 
 /*************************************************************************************************/
@@ -163,6 +192,7 @@ void WsfTaskSetReady(wsfHandlerId_t handlerId, wsfTaskEvent_t event)
   WSF_CS_EXIT(cs);
 
   /* set event in OS */
+  wsfOsWake();
 }
 
 /*************************************************************************************************/
@@ -226,6 +256,8 @@ bool_t wsfOsReadyToSleep(void)
 void WsfOsInit(void)
 {
   memset(&wsfOs, 0, sizeof(wsfOs));
+
+  WsfTaskHandle = xTaskGetCurrentTaskHandle();
 }
 
 /*************************************************************************************************/
@@ -294,5 +326,11 @@ void wsfOsDispatcher(void)
         (*pTask->handler[i])(eventMask, NULL);
       }
     }
+  }
+
+  WsfTimerSleepUpdate();
+  if (wsfOsReadyToSleep())
+  {
+    WsfTimerSleep();
   }
 }

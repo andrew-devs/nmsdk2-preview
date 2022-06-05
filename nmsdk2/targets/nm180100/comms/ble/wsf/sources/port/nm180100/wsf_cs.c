@@ -25,8 +25,6 @@
 #include "wsf_types.h"
 #include "wsf_cs.h"
 #include "wsf_assert.h"
-#include "pal_bb.h"
-#include "pal_sys.h"
 
 /**************************************************************************************************
   Global Variables

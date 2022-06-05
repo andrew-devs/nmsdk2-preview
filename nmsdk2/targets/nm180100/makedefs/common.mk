@@ -31,7 +31,7 @@ DEFINES_DBG += -DAM_DEBUG_ASSERT
 DEFINES_DBG += -DAM_DEBUG_PRINTF
 
 CFLAGS  = -mthumb -mcpu=$(CPU) -mfpu=$(FPU) -mfloat-abi=$(FABI)
-CFLAGS += -ffunction-sections -fdata-sections
+CFLAGS += -ffunction-sections -fdata-sections -fomit-frame-pointer
 CFLAGS += -MMD -MP -std=c99 -Wall
 CFLAGS += $(DEFINES)
 
