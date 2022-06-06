@@ -48,7 +48,6 @@
 #include <app_api.h>
 #include <app_ui.h>
 
-#include "hidapp_api.h"
 #include "console_task.h"
 #include "ble_task.h"
 #include "ble_task_cli.h"
@@ -77,8 +76,8 @@ static void ble_task_cli_help(char *pui8OutBuffer, size_t argc, char **argv)
     strcat(pui8OutBuffer, "\r\nusage: ble <command>\r\n");
     strcat(pui8OutBuffer, "\r\n");
     strcat(pui8OutBuffer, "supported commands are:\r\n");
-    strcat(pui8OutBuffer, "  adv\r\n");
-    strcat(pui8OutBuffer, "  trace\r\n");
+    strcat(pui8OutBuffer, "  adv    <start|stop>\r\n");
+    strcat(pui8OutBuffer, "  trace  <on|off>\r\n");
 }
 
 static void ble_task_cli_adv(char *pui8OutBuffer, size_t argc, char **argv)
@@ -124,14 +123,6 @@ ble_task_cli_entry(char *pui8OutBuffer, size_t ui32OutBufferLength, const char *
     else if (strcmp(argv[1], "trace") == 0)
     {
         ble_task_cli_trace(pui8OutBuffer, argc, argv);
-    }
-    else if (strcmp(argv[1], "test") == 0)
-    {
-        uint8_t button;
-        button = 'a';
-        HidAppKeyboardReportEvent(0, &button, 1);
-        button = 0x00;
-        HidAppKeyboardReportEvent(0, &button, 1);
     }
 
     return pdFALSE;
