@@ -735,7 +735,7 @@ static void hidAppRemoteReportEvent(uint8_t button)
  *  \return None.
  */
 /*************************************************************************************************/
-static void hidAppKeyboardReportEvent(uint8_t modifiers, uint8_t keys[], uint8_t numKeys)
+void HidAppKeyboardReportEvent(uint8_t modifiers, uint8_t keys[], uint8_t numKeys)
 {
   dmConnId_t connId;
 
@@ -876,19 +876,19 @@ static void hidAppTestSendButton(void)
     break;
   case HIDAPP_KEYBOARD_UP_BTN:
     button = KEYBOARD_USAGE_UP_ARROW;
-    hidAppKeyboardReportEvent(0, &button, 1);
+    HidAppKeyboardReportEvent(0, &button, 1);
     break;
   case HIDAPP_KEYBOARD_DOWN_BTN:
     button = KEYBOARD_USAGE_DOWN_ARROW;
-    hidAppKeyboardReportEvent(0, &button, 1);
+    HidAppKeyboardReportEvent(0, &button, 1);
     break;
   case HIDAPP_KEYBOARD_LEFT_BTN:
     button = KEYBOARD_USAGE_LEFT_ARROW;
-    hidAppKeyboardReportEvent(0, &button, 1);
+    HidAppKeyboardReportEvent(0, &button, 1);
     break;
   case HIDAPP_KEYBOARD_RIGHT_BTN:
     button = KEYBOARD_USAGE_RIGHT_ARROW;
-    hidAppKeyboardReportEvent(0, &button, 1);
+    HidAppKeyboardReportEvent(0, &button, 1);
     break;
   default:
     return;
@@ -929,7 +929,7 @@ static void hidAppTestNoButton(void)
   case HIDAPP_KEYBOARD_LEFT_BTN:
   case HIDAPP_KEYBOARD_RIGHT_BTN:
     button = KEYBOARD_USAGE_NONE;
-    hidAppKeyboardReportEvent(0, &button, 1);
+    HidAppKeyboardReportEvent(0, &button, 1);
     break;
   default:
     return;

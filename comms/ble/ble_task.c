@@ -93,7 +93,6 @@ static void ble_task_setup()
     WsfTimerInit();
 
     WsfTraceRegisterHandler(ble_task_tracer);
-    WsfTraceEnable(TRUE);
 
     StackInitHidApp();
 

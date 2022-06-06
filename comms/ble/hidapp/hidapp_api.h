@@ -64,6 +64,8 @@ void HidAppHandlerInit(wsfHandlerId_t handlerId);
 /*************************************************************************************************/
 void HidAppHandler(wsfEventMask_t event, wsfMsgHdr_t *pMsg);
 
+void HidAppKeyboardReportEvent(uint8_t modifiers, uint8_t keys[], uint8_t numKeys);
+
 #ifdef __cplusplus
 };
 #endif

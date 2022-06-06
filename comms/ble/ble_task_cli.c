@@ -44,9 +44,11 @@
 #include <timers.h>
 
 #include <wsf_types.h>
+#include <wsf_trace.h>
 #include <app_api.h>
 #include <app_ui.h>
 
+#include "hidapp_api.h"
 #include "console_task.h"
 #include "ble_task.h"
 #include "ble_task_cli.h"
@@ -75,8 +77,32 @@ static void ble_task_cli_help(char *pui8OutBuffer, size_t argc, char **argv)
     strcat(pui8OutBuffer, "\r\nusage: ble <command>\r\n");
     strcat(pui8OutBuffer, "\r\n");
     strcat(pui8OutBuffer, "supported commands are:\r\n");
-    strcat(pui8OutBuffer, "  start\r\n");
-    strcat(pui8OutBuffer, "  stop\r\n");
+    strcat(pui8OutBuffer, "  adv\r\n");
+    strcat(pui8OutBuffer, "  trace\r\n");
+}
+
+static void ble_task_cli_adv(char *pui8OutBuffer, size_t argc, char **argv)
+{
+    if (strcmp(argv[2], "start") == 0)
+    {
+        AppAdvStart(APP_MODE_AUTO_INIT);
+    }
+    else if (strcmp(argv[2], "stop") == 0)
+    {
+        AppAdvStop();
+    }
+}
+
+static void ble_task_cli_trace(char *pui8OutBuffer, size_t argc, char **argv)
+{
+    if (strcmp(argv[2], "on") == 0)
+    {
+        WsfTraceEnable(true);
+    }
+    else if (strcmp(argv[2], "off") == 0)
+    {
+        WsfTraceEnable(false);
+    }
 }
 
 static portBASE_TYPE
@@ -91,13 +117,21 @@ ble_task_cli_entry(char *pui8OutBuffer, size_t ui32OutBufferLength, const char *
     {
         ble_task_cli_help(pui8OutBuffer, argc, argv);
     }
-    else if (strcmp(argv[1], "start") == 0)
+    else if (strcmp(argv[1], "adv") == 0)
     {
-        AppAdvStart(APP_MODE_AUTO_INIT);
+        ble_task_cli_adv(pui8OutBuffer, argc, argv);
     }
-    else if (strcmp(argv[1], "stop") == 0)
+    else if (strcmp(argv[1], "trace") == 0)
     {
-        AppAdvStop();
+        ble_task_cli_trace(pui8OutBuffer, argc, argv);
+    }
+    else if (strcmp(argv[1], "test") == 0)
+    {
+        uint8_t button;
+        button = 'a';
+        HidAppKeyboardReportEvent(0, &button, 1);
+        button = 0x00;
+        HidAppKeyboardReportEvent(0, &button, 1);
     }
 
     return pdFALSE;
