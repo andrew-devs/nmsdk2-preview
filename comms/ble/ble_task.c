@@ -118,6 +118,10 @@ static void ble_task(void *pvParameters)
     while (1)
     {
         wsfOsDispatcher();
+        if (wsfOsReadyToSleep())
+        {
+            xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
+        }
     }
 }
 

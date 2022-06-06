@@ -330,8 +330,4 @@ void wsfOsDispatcher(void)
 
   WsfTimerSleepUpdate();
   WsfTimerSleep();
-  if (wsfOsReadyToSleep())
-  {
-      xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
-  }
 }
