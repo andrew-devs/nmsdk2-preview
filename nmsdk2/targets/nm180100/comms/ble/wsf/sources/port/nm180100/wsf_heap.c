@@ -30,11 +30,11 @@
 #include "wsf_trace.h"
 #include "wsf_cs.h"
 
+#include "ble_config.h"
+
 /**************************************************************************************************
   Global Variables
 **************************************************************************************************/
-#define WSF_HEAP_SIZE (0x4000)
-
 static uint8_t wsfHeap[WSF_HEAP_SIZE];
 
 static uint8_t *WsfHeapStart = wsfHeap;

@@ -30,8 +30,10 @@
 #include "wsf_cs.h"
 #include "wsf_trace.h"
 
-#define CLOCK_PERIOD      32768
-#define CLOCK_SOURCE      AM_HAL_STIMER_XTAL_32KHZ
+#include "ble_config.h"
+
+#define CLOCK_PERIOD      WSF_OS_CLOCK_PERIOD
+#define CLOCK_SOURCE      WSF_OS_CLOCK_SOURCE
 
 /* convert seconds to timer ticks */
 #define WSF_TIMER_SEC_TO_TICKS(sec)         ((1000 / WSF_MS_PER_TICK) * (sec))

@@ -25,7 +25,7 @@ ble_dbg: $(BUILDDIR_DBG)/$(BLE_LIB_DBG)
 $(BUILDDIR_DBG)/$(BLE_LIB_DBG): $(BLE_OBJS_DBG)
 	$(AR) rsvc $@ $^
 
-$(BLE_OBJS_DBG): $(BUILDDIR_DBG)/%.o : %.c
+$(BLE_OBJS_DBG): $(BUILDDIR_DBG)/%.o : %.c $(BLE_CONFIG)
 	$(CC) -c $(CFLAGS_DBG) $(BLE_DEFINES) $(BLE_INC) $(HAL_INC) $< -o $@
 
 ble_rel: $(BUILDDIR_REL)/$(BLE_LIB_REL)
@@ -33,7 +33,7 @@ ble_rel: $(BUILDDIR_REL)/$(BLE_LIB_REL)
 $(BUILDDIR_REL)/$(BLE_LIB_REL): $(BLE_OBJS_REL)
 	$(AR) rsvc $@ $^
 
-$(BLE_OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
+$(BLE_OBJS_REL): $(BUILDDIR_REL)/%.o : %.c $(BLE_CONFIG)
 	$(CC) -c $(CFLAGS_REL) $(BLE_DEFINES) $(BLE_INC) $(HAL_INC) $< -o $@
 
 -include $(BLE_DEPS_DBG)
