@@ -1,28 +1,22 @@
 /*************************************************************************************************/
 /*!
- *  \file
+ *  \file   hci_core_ps.c
  *
  *  \brief  HCI core platform-specific module for dual-chip.
  *
- *  Copyright (c) 2009-2018 Arm Ltd.
+ *          $Date: 2016-12-28 16:12:14 -0600 (Wed, 28 Dec 2016) $
+ *          $Revision: 10805 $
  *
- *  Copyright (c) 2019 Packetcraft, Inc.
+ *  Copyright (c) 2009-2017 ARM Ltd., all rights reserved.
+ *  ARM Ltd. confidential and proprietary.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- *  This module implements core platform-dependent HCI features for transmit data path, receive
- *  data path, the “optimization” API, and the main event handler. This module contains separate
- *  implementations for dual chip and single chip.
+ *  IMPORTANT.  Your use of this file is governed by a Software License Agreement
+ *  ("Agreement") that must be accepted in order to download or otherwise receive a
+ *  copy of this file.  You may not use or copy this file for any purpose other than
+ *  as described in the Agreement.  If you do not agree to all of the terms of the
+ *  Agreement do not use this file and delete all copies in your possession or control;
+ *  if you do not have a copy of the Agreement, you must contact ARM Ltd. prior
+ *  to any use, copying or further distribution of this software.
  */
 /*************************************************************************************************/
 
@@ -30,8 +24,8 @@
 #include "wsf_types.h"
 #include "wsf_msg.h"
 #include "wsf_trace.h"
-#include "util/bda.h"
-#include "util/bstream.h"
+#include "bda.h"
+#include "bstream.h"
 #include "hci_core.h"
 #include "hci_tr.h"
 #include "hci_cmd.h"
@@ -41,6 +35,8 @@
 
 /*************************************************************************************************/
 /*!
+ *  \fn     hciCoreInit
+ *
  *  \brief  HCI core initialization.
  *
  *  \return None.
@@ -53,6 +49,8 @@ void hciCoreInit(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     hciCoreNumCmplPkts
+ *
  *  \brief  Handle an HCI Number of Completed Packets event.
  *
  *  \param  pMsg    Message containing the HCI Number of Completed Packets event.
@@ -104,6 +102,8 @@ void hciCoreNumCmplPkts(uint8_t *pMsg)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     hciCoreRecv
+ *
  *  \brief  Send a received HCI event or ACL packet to the HCI event handler.
  *
  *  \param  msgType       Message type:  HCI_ACL_TYPE or HCI_EVT_TYPE.
@@ -133,6 +133,8 @@ void hciCoreRecv(uint8_t msgType, uint8_t *pCoreRecvMsg)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciCoreHandler
+ *        
  *  \brief  WSF event handler for core HCI.
  *
  *  \param  event   WSF event mask.
@@ -145,7 +147,7 @@ void HciCoreHandler(wsfEventMask_t event, wsfMsgHdr_t *pMsg)
 {
   uint8_t         *pBuf;
   wsfHandlerId_t  handlerId;
-
+  
   /* Handle message */
   if (pMsg != NULL)
   {
@@ -172,7 +174,7 @@ void HciCoreHandler(wsfEventMask_t event, wsfMsgHdr_t *pMsg)
         {
           hciCoreResetSequence(pBuf);
         }
-
+        
         /* Free buffer */
         WsfMsgFree(pBuf);
       }
@@ -192,6 +194,8 @@ void HciCoreHandler(wsfEventMask_t event, wsfMsgHdr_t *pMsg)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetBdAddr
+ *
  *  \brief  Return a pointer to the BD address of this device.
  *
  *  \return Pointer to the BD address.
@@ -204,6 +208,8 @@ uint8_t *HciGetBdAddr(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetWhiteListSize
+ *
  *  \brief  Return the white list size.
  *
  *  \return White list size.
@@ -216,6 +222,8 @@ uint8_t HciGetWhiteListSize(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetAdvTxPwr
+ *
  *  \brief  Return the advertising transmit power.
  *
  *  \return Advertising transmit power.
@@ -228,6 +236,8 @@ int8_t HciGetAdvTxPwr(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetBufSize
+ *
  *  \brief  Return the ACL buffer size supported by the controller.
  *
  *  \return ACL buffer size.
@@ -240,6 +250,8 @@ uint16_t HciGetBufSize(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetNumBufs
+ *
  *  \brief  Return the number of ACL buffers supported by the controller.
  *
  *  \return Number of ACL buffers.
@@ -252,6 +264,8 @@ uint8_t HciGetNumBufs(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetSupStates
+ *
  *  \brief  Return the states supported by the controller.
  *
  *  \return Pointer to the supported states array.
@@ -264,6 +278,8 @@ uint8_t *HciGetSupStates(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetLeSupFeat
+ *
  *  \brief  Return the LE supported features supported by the controller.
  *
  *  \return Supported features.
@@ -271,11 +287,15 @@ uint8_t *HciGetSupStates(void)
 /*************************************************************************************************/
 uint32_t HciGetLeSupFeat(void)
 {
-  return hciCoreCb.leSupFeat;
+  // disable LL connection parameter update feature for a better
+  // interoperability with Android phones (especially older Android OS).
+  return hciCoreCb.leSupFeat & ~HCI_LE_SUP_FEAT_CONN_PARAM_REQ_PROC;
 }
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetMaxRxAclLen
+ *
  *  \brief  Get the maximum reassembled RX ACL packet length.
  *
  *  \return ACL packet length.
@@ -288,6 +308,8 @@ uint16_t HciGetMaxRxAclLen(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetResolvingListSize
+ *
  *  \brief  Return the resolving list size.
  *
  *  \return resolving list size.
@@ -300,6 +322,8 @@ uint8_t HciGetResolvingListSize(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciLlPrivacySupported
+ *
  *  \brief  Whether LL Privacy is supported.
  *
  *  \return TRUE if LL Privacy is supported. FALSE, otherwise.
@@ -312,6 +336,8 @@ bool_t HciLlPrivacySupported(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetMaxAdvDataLen
+ *
  *  \brief  Get the maximum advertisement (or scan response) data length supported by the Controller.
  *
  *  \return Maximum advertisement data length.
@@ -324,6 +350,8 @@ uint16_t HciGetMaxAdvDataLen(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetNumSupAdvSets
+ *
  *  \brief  Get the maximum number of advertising sets supported by the Controller.
  *
  *  \return Maximum number of advertising sets.
@@ -336,6 +364,8 @@ uint8_t HciGetNumSupAdvSets(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciLeAdvExtSupported
+ *
  *  \brief  Whether LE Advertising Extensions is supported.
  *
  *  \return TRUE if LE Advertising Extensions is supported. FALSE, otherwise.
@@ -348,6 +378,8 @@ bool_t HciLeAdvExtSupported(void)
 
 /*************************************************************************************************/
 /*!
+ *  \fn     HciGetPerAdvListSize
+ *
  *  \brief  Return the periodic advertising list size.
  *
  *  \return periodic advertising list size.
@@ -356,16 +388,4 @@ bool_t HciLeAdvExtSupported(void)
 uint8_t HciGetPerAdvListSize(void)
 {
   return hciCoreCb.perAdvListSize;
-}
-
-/*************************************************************************************************/
-/*!
- *  \brief  Return a pointer to the local version information.
- *
- *  \return Pointer to the local version information.
- */
-/*************************************************************************************************/
-hciLocalVerInfo_t *HciGetLocalVerInfo(void)
-{
-  return &hciCoreCb.locVerInfo;
 }
