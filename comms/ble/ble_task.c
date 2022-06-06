@@ -53,7 +53,7 @@
 #include <hci_drv_apollo.h>
 #include <hci_drv_apollo3.h>
 
-#include "tag_api.h"
+#include "hidapp_api.h"
 
 #include "ble_task.h"
 #include "ble_task_cli.h"
@@ -63,7 +63,7 @@ static TaskHandle_t ble_task_handle;
 static wsfBufPoolDesc_t mainPoolDesc[] = {{16, 8}, {32, 4}, {192, 8}, {256, 8}};
 static char wsf_trace_buffer[256];
 
-extern void StackInitTag(void);
+extern void StackInitHidApp(void);
 
 void am_ble_isr(void)
 {
@@ -95,7 +95,7 @@ static void ble_task_setup()
     WsfTraceRegisterHandler(ble_task_tracer);
     WsfTraceEnable(TRUE);
 
-    StackInitTag();
+    StackInitHidApp();
 
     wsfHandlerId_t handlerId;
     handlerId = WsfOsSetNextHandler(HciDrvHandler);
@@ -107,7 +107,7 @@ static void ble_task(void *pvParameters)
     ble_task_cli_register();
     ble_task_setup();
 
-    TagStart();
+    HidAppStart();
     while (1)
     {
         wsfOsDispatcher();

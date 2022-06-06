@@ -94,12 +94,12 @@ SRC += lorawan_task.c
 SRC += lorawan_task_cli.c
 
 INCLUDES += -I./comms/ble
-INCLUDES += -I./comms/ble/tag
+INCLUDES += -I./comms/ble/hidapp
 
 VPATH += ./comms/ble
-VPATH += ./comms/ble/tag
+VPATH += ./comms/ble/hidapp
 
 SRC += ble_task.c
 SRC += ble_task_cli.c
-SRC += stack_tag.c
-SRC += tag_main_wdxs.c
+SRC += stack_hidapp.c
+SRC += hidapp_main.c
