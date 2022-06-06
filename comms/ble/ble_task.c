@@ -61,10 +61,9 @@
 static TaskHandle_t ble_task_handle;
 
 static wsfBufPoolDesc_t mainPoolDesc[] = {{16, 8}, {32, 4}, {192, 8}, {256, 8}};
+static char wsf_trace_buffer[256];
 
-static char trace_buffer[256];
-
-extern void StackInitHidApp(void);
+extern void StackInitTag(void);
 
 void am_ble_isr(void)
 {
@@ -73,10 +72,10 @@ void am_ble_isr(void)
 
 uint8_t ble_task_tracer(const uint8_t *msg, long unsigned int len)
 {
-    memcpy(trace_buffer, msg, len);
-    trace_buffer[len] = 0;
+    memcpy(wsf_trace_buffer, msg, len);
+    wsf_trace_buffer[len] = 0;
 
-    am_util_stdio_printf(trace_buffer);
+    am_util_stdio_printf(wsf_trace_buffer);
 
     return 1;
 }
