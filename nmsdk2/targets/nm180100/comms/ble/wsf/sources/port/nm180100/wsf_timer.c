@@ -23,9 +23,6 @@
 /*************************************************************************************************/
 #include "am_mcu_apollo.h"
 
-#include "FreeRTOS.h"
-#include "task.h"
-
 #include "wsf_types.h"
 #include "wsf_queue.h"
 #include "wsf_timer.h"
