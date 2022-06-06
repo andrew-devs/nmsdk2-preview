@@ -39,8 +39,6 @@
 #include "wsf_msg.h"
 #include "wsf_cs.h"
 
-EventGroupHandle_t xRadioTaskEventObject = NULL;
-
 /**************************************************************************************************
   Compile time assert checks
 **************************************************************************************************/
@@ -96,46 +94,24 @@ wsfOs_t wsfOs;
 wsfHandlerId_t WsfActiveHandler;
 #endif /* WSF_OS_DIAG */
 
+static TaskHandle_t wsfOsTask;
+
 void WsfSetOsSpecificEvent(void)
 {
-  if(xRadioTaskEventObject != NULL) 
-  {
+    BaseType_t xHigherPriorityTaskWoken;
 
-      BaseType_t xHigherPriorityTaskWoken, xResult;
-
-      if(xPortIsInsideInterrupt() == pdTRUE) {
-
-          //
-          // Send an event to the main radio task
-          //
-          xHigherPriorityTaskWoken = pdFALSE;
-
-          xResult = xEventGroupSetBitsFromISR(xRadioTaskEventObject, 1,
-                                              &xHigherPriorityTaskWoken);
-
-          //
-          // If the radio task is higher-priority than the context we're currently
-          // running from, we should yield now and run the radio task.
-          //
-          if ( xResult != pdFAIL )
-          {
-              portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-          }    
-
-      }
-      else {
-
-          xResult = xEventGroupSetBits(xRadioTaskEventObject, 1);
-          //
-          // If the radio task is higher priority than the context we're currently
-          // running from, we should yield now and run the radio task.
-          //
-          if ( xResult != pdFAIL )
-          {
-              portYIELD();
-          }
-      }
-  }    
+    if(xPortIsInsideInterrupt() == pdTRUE) {
+      //
+      // Send an event to the main radio task
+      //
+      xHigherPriorityTaskWoken = pdFALSE;
+      xTaskNotifyFromISR(wsfOsTask, 0, eNoAction, &xHigherPriorityTaskWoken);
+      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    else {
+      xTaskNotify(wsfOsTask, 0, eNoAction);
+      portYIELD();
+    }
 }
 
 /*************************************************************************************************/
@@ -276,12 +252,7 @@ void WsfOsInit(void)
 {
   memset(&wsfOs, 0, sizeof(wsfOs));
 
-  if( xRadioTaskEventObject == NULL)
-  {
-    xRadioTaskEventObject = xEventGroupCreate();
-
-    WSF_ASSERT(xRadioTaskEventObject != NULL);
-  }
+  wsfOsTask = xTaskGetCurrentTaskHandle();
 }
 
 /*************************************************************************************************/
@@ -355,13 +326,12 @@ void wsfOsDispatcher(void)
         }
       }
     }
+  }
 
-    WsfTimerSleepUpdate();
-    WsfTimerSleep();
-    if (wsfOsReadyToSleep())
-    {
-      xEventGroupWaitBits(xRadioTaskEventObject, 1, pdTRUE,
-                        pdFALSE, portMAX_DELAY);
-    }
+  WsfTimerSleepUpdate();
+  WsfTimerSleep();
+  if (wsfOsReadyToSleep())
+  {
+      xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
   }
 }
