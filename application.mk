@@ -43,9 +43,11 @@ OUTPUT_OTA  := nmapp-ota
 # Current overridable configurations are:
 #   FREERTOS_CONFIG
 #	LORAWAN_EEPROM_CONFIG
+#	BLE_CONFIG
 #
 #******************************************************************************
 # FREERTOS_CONFIG := $(shell pwd)/config/FreeRTOSConfig.h
+# BLE_CONFIG := $(shell pwd)/config/ble_config.h
 
 #******************************************************************************
 #
