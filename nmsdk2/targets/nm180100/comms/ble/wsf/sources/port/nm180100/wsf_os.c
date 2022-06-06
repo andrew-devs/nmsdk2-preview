@@ -21,10 +21,6 @@
  *  limitations under the License.
  */
 /*************************************************************************************************/
-#include "FreeRTOS.h"
-#include "task.h"
-#include "event_groups.h"
-
 #ifdef __IAR_SYSTEMS_ICC__
 #include <intrinsics.h>
 #endif
@@ -94,24 +90,10 @@ wsfOs_t wsfOs;
 wsfHandlerId_t WsfActiveHandler;
 #endif /* WSF_OS_DIAG */
 
-static TaskHandle_t wsfOsTask;
+void WsfOsEventNotify(void) __attribute ((weak, alias("WsfSetOsSpecificEvent")));
 
 void WsfSetOsSpecificEvent(void)
 {
-    BaseType_t xHigherPriorityTaskWoken;
-
-    if(xPortIsInsideInterrupt() == pdTRUE) {
-      //
-      // Send an event to the main radio task
-      //
-      xHigherPriorityTaskWoken = pdFALSE;
-      xTaskNotifyFromISR(wsfOsTask, 0, eNoAction, &xHigherPriorityTaskWoken);
-      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
-    else {
-      xTaskNotify(wsfOsTask, 0, eNoAction);
-      portYIELD();
-    }
 }
 
 /*************************************************************************************************/
@@ -162,7 +144,7 @@ void WsfSetEvent(wsfHandlerId_t handlerId, wsfEventMask_t event)
   WSF_CS_EXIT(cs);
 
   /* set event in OS */
-  WsfSetOsSpecificEvent();
+  WsfOsEventNotify();
 }
 
 /*************************************************************************************************/
@@ -187,7 +169,7 @@ void WsfTaskSetReady(wsfHandlerId_t handlerId, wsfTaskEvent_t event)
   WSF_CS_EXIT(cs);
 
   /* set event in OS */
-  WsfSetOsSpecificEvent();
+  WsfOsEventNotify();
 }
 
 /*************************************************************************************************/
@@ -251,8 +233,6 @@ bool_t wsfOsReadyToSleep(void)
 void WsfOsInit(void)
 {
   memset(&wsfOs, 0, sizeof(wsfOs));
-
-  wsfOsTask = xTaskGetCurrentTaskHandle();
 }
 
 /*************************************************************************************************/
@@ -276,8 +256,6 @@ void wsfOsDispatcher(void)
 
   pTask = &wsfOs.task;
 
-  WsfTimerSleepUpdate();
-  WsfTimerSleep();
   while (pTask->taskEventMask)
   {
     /* get and then clear task event mask */

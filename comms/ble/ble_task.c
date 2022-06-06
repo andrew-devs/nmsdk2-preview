@@ -41,6 +41,7 @@
 #include <am_util.h>
 
 #include <FreeRTOS.h>
+#include <task.h>
 #include <queue.h>
 
 #include <wsf_types.h>
@@ -129,3 +130,22 @@ void ble_task_create(uint32_t ui32Priority)
 {
     xTaskCreate(ble_task, "ble", 512, 0, ui32Priority, &ble_task_handle);
 }
+
+void WsfOsEventNotify(void)
+{
+    BaseType_t xHigherPriorityTaskWoken;
+
+    if(xPortIsInsideInterrupt() == pdTRUE) {
+      //
+      // Send an event to the main radio task
+      //
+      xHigherPriorityTaskWoken = pdFALSE;
+      xTaskNotifyFromISR(ble_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
+      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    else {
+      xTaskNotify(ble_task_handle, 0, eNoAction);
+      portYIELD();
+    }
+}
+
