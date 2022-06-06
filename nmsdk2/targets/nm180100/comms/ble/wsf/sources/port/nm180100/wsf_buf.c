@@ -162,14 +162,14 @@ uint32_t WsfBufCalcSize(uint8_t numPools, wsfBufPoolDesc_t *pDesc)
 /*************************************************************************************************/
 uint32_t WsfBufInit(uint8_t numPools, wsfBufPoolDesc_t *pDesc)
 {
-  wsfBufPool_t  *pPool;
+  // declare pPool as volatile since pStart and pFree can potentially be optimised out 
+  volatile wsfBufPool_t  *pPool;
   wsfBufMem_t   *pStart;
   uint16_t      len;
   uint8_t       i;
 
   wsfBufMem = (wsfBufMem_t *) WsfHeapGetFreeStartAddress();
   pPool = (wsfBufPool_t *) wsfBufMem;
-
   /* Buffer storage starts after the pool structs. */
   pStart = (wsfBufMem_t *) (pPool + numPools);
 
@@ -265,7 +265,7 @@ uint32_t WsfBufInit(uint8_t numPools, wsfBufPoolDesc_t *pDesc)
 /*************************************************************************************************/
 void *WsfBufAlloc(uint16_t len)
 {
-  wsfBufPool_t  *pPool;
+  volatile wsfBufPool_t  *pPool;
   wsfBufMem_t   *pBuf;
   uint8_t       i;
 
@@ -374,7 +374,7 @@ void *WsfBufAlloc(uint16_t len)
 /*************************************************************************************************/
 void WsfBufFree(void *pBuf)
 {
-  wsfBufPool_t  *pPool;
+  volatile wsfBufPool_t  *pPool;
   wsfBufMem_t   *p = pBuf;
 
   WSF_CS_INIT(cs);

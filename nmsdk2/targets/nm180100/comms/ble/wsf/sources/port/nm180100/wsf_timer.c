@@ -397,7 +397,6 @@ void WsfTimerSleep(void)
     am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREE);
     am_hal_stimer_int_clear(AM_HAL_STIMER_INT_COMPAREF);
   }
-  xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
 }
 
 /*************************************************************************************************/
@@ -430,5 +429,4 @@ void WsfTimerSleepUpdate(void)
       WsfTimerUpdate(wsfElapsed);
     }
   }
-
 }

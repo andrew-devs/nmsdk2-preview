@@ -23,6 +23,7 @@
 /*************************************************************************************************/
 #include "FreeRTOS.h"
 #include "task.h"
+#include "event_groups.h"
 
 #ifdef __IAR_SYSTEMS_ICC__
 #include <intrinsics.h>
@@ -37,6 +38,8 @@
 #include "wsf_buf.h"
 #include "wsf_msg.h"
 #include "wsf_cs.h"
+
+EventGroupHandle_t xRadioTaskEventObject = NULL;
 
 /**************************************************************************************************
   Compile time assert checks
@@ -93,30 +96,46 @@ wsfOs_t wsfOs;
 wsfHandlerId_t WsfActiveHandler;
 #endif /* WSF_OS_DIAG */
 
-static TaskHandle_t WsfTaskHandle;
-
-static void wsfOsWake()
+void WsfSetOsSpecificEvent(void)
 {
-  if (WsfTaskHandle)
+  if(xRadioTaskEventObject != NULL) 
   {
-    BaseType_t xHigherPriorityTaskWoken;
-    if (xPortIsInsideInterrupt() == pdTRUE)
-    {
-      xHigherPriorityTaskWoken = pdFALSE;
-      xTaskNotifyFromISR(
-        WsfTaskHandle,
-        0,
-        eNoAction,
-        &xHigherPriorityTaskWoken
-      );
 
-      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
-    else
-    {
-      xTaskNotify(WsfTaskHandle, 0, eNoAction);
-    }
-  }
+      BaseType_t xHigherPriorityTaskWoken, xResult;
+
+      if(xPortIsInsideInterrupt() == pdTRUE) {
+
+          //
+          // Send an event to the main radio task
+          //
+          xHigherPriorityTaskWoken = pdFALSE;
+
+          xResult = xEventGroupSetBitsFromISR(xRadioTaskEventObject, 1,
+                                              &xHigherPriorityTaskWoken);
+
+          //
+          // If the radio task is higher-priority than the context we're currently
+          // running from, we should yield now and run the radio task.
+          //
+          if ( xResult != pdFAIL )
+          {
+              portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+          }    
+
+      }
+      else {
+
+          xResult = xEventGroupSetBits(xRadioTaskEventObject, 1);
+          //
+          // If the radio task is higher priority than the context we're currently
+          // running from, we should yield now and run the radio task.
+          //
+          if ( xResult != pdFAIL )
+          {
+              portYIELD();
+          }
+      }
+  }    
 }
 
 /*************************************************************************************************/
@@ -167,7 +186,7 @@ void WsfSetEvent(wsfHandlerId_t handlerId, wsfEventMask_t event)
   WSF_CS_EXIT(cs);
 
   /* set event in OS */
-  wsfOsWake();
+  WsfSetOsSpecificEvent();
 }
 
 /*************************************************************************************************/
@@ -192,7 +211,7 @@ void WsfTaskSetReady(wsfHandlerId_t handlerId, wsfTaskEvent_t event)
   WSF_CS_EXIT(cs);
 
   /* set event in OS */
-  wsfOsWake();
+  WsfSetOsSpecificEvent();
 }
 
 /*************************************************************************************************/
@@ -257,7 +276,12 @@ void WsfOsInit(void)
 {
   memset(&wsfOs, 0, sizeof(wsfOs));
 
-  WsfTaskHandle = xTaskGetCurrentTaskHandle();
+  if( xRadioTaskEventObject == NULL)
+  {
+    xRadioTaskEventObject = xEventGroupCreate();
+
+    WSF_ASSERT(xRadioTaskEventObject != NULL);
+  }
 }
 
 /*************************************************************************************************/
@@ -281,56 +305,63 @@ void wsfOsDispatcher(void)
 
   pTask = &wsfOs.task;
 
-  /* get and then clear task event mask */
-  WSF_CS_ENTER(cs);
-  taskEventMask = pTask->taskEventMask;
-  pTask->taskEventMask = 0;
-  WSF_CS_EXIT(cs);
-
-  if (taskEventMask & WSF_MSG_QUEUE_EVENT)
+  WsfTimerSleepUpdate();
+  WsfTimerSleep();
+  while (pTask->taskEventMask)
   {
-    /* handle msg queue */
-    while ((pMsg = WsfMsgDeq(&pTask->msgQueue, &handlerId)) != NULL)
-    {
-      WSF_ASSERT(handlerId < WSF_MAX_HANDLERS);
-      WSF_OS_SET_ACTIVE_HANDLER_ID(handlerId);
-      (*pTask->handler[handlerId])(0, pMsg);
-      WsfMsgFree(pMsg);
-    }
-  }
+    /* get and then clear task event mask */
+    WSF_CS_ENTER(cs);
+    taskEventMask = pTask->taskEventMask;
+    pTask->taskEventMask = 0;
+    WSF_CS_EXIT(cs);
 
-  if (taskEventMask & WSF_TIMER_EVENT)
-  {
-    /* service timers */
-    while ((pTimer = WsfTimerServiceExpired(0)) != NULL)
+    if (taskEventMask & WSF_MSG_QUEUE_EVENT)
     {
-      WSF_ASSERT(pTimer->handlerId < WSF_MAX_HANDLERS);
-      WSF_OS_SET_ACTIVE_HANDLER_ID(pTimer->handlerId);
-      (*pTask->handler[pTimer->handlerId])(0, &pTimer->msg);
-    }
-  }
-
-  if (taskEventMask & WSF_HANDLER_EVENT)
-  {
-    /* service handlers */
-    for (i = 0; i < WSF_MAX_HANDLERS; i++)
-    {
-      if ((pTask->handlerEventMask[i] != 0) && (pTask->handler[i] != NULL))
+      /* handle msg queue */
+      while ((pMsg = WsfMsgDeq(&pTask->msgQueue, &handlerId)) != NULL)
       {
-        WSF_CS_ENTER(cs);
-        eventMask = pTask->handlerEventMask[i];
-        pTask->handlerEventMask[i] = 0;
-        WSF_OS_SET_ACTIVE_HANDLER_ID(i);
-        WSF_CS_EXIT(cs);
-
-        (*pTask->handler[i])(eventMask, NULL);
+        WSF_ASSERT(handlerId < WSF_MAX_HANDLERS);
+        WSF_OS_SET_ACTIVE_HANDLER_ID(handlerId);
+        (*pTask->handler[handlerId])(0, pMsg);
+        WsfMsgFree(pMsg);
       }
     }
-  }
 
-  WsfTimerSleepUpdate();
-  if (wsfOsReadyToSleep())
-  {
+    if (taskEventMask & WSF_TIMER_EVENT)
+    {
+      /* service timers */
+      while ((pTimer = WsfTimerServiceExpired(0)) != NULL)
+      {
+        WSF_ASSERT(pTimer->handlerId < WSF_MAX_HANDLERS);
+        WSF_OS_SET_ACTIVE_HANDLER_ID(pTimer->handlerId);
+        (*pTask->handler[pTimer->handlerId])(0, &pTimer->msg);
+      }
+    }
+
+    if (taskEventMask & WSF_HANDLER_EVENT)
+    {
+      /* service handlers */
+      for (i = 0; i < WSF_MAX_HANDLERS; i++)
+      {
+        if ((pTask->handlerEventMask[i] != 0) && (pTask->handler[i] != NULL))
+        {
+          WSF_CS_ENTER(cs);
+          eventMask = pTask->handlerEventMask[i];
+          pTask->handlerEventMask[i] = 0;
+          WSF_OS_SET_ACTIVE_HANDLER_ID(i);
+          WSF_CS_EXIT(cs);
+
+          (*pTask->handler[i])(eventMask, NULL);
+        }
+      }
+    }
+
+    WsfTimerSleepUpdate();
     WsfTimerSleep();
+    if (wsfOsReadyToSleep())
+    {
+      xEventGroupWaitBits(xRadioTaskEventObject, 1, pdTRUE,
+                        pdFALSE, portMAX_DELAY);
+    }
   }
 }

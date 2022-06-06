@@ -33,12 +33,12 @@
 /**************************************************************************************************
   Global Variables
 **************************************************************************************************/
-#define WSF_HEAP_SIZE (0x8000)
+#define WSF_HEAP_SIZE (0x4000)
 
 static uint8_t wsfHeap[WSF_HEAP_SIZE];
 
-static uint8_t *SystemHeapStart = wsfHeap;
-static uint32_t SystemHeapSize = WSF_HEAP_SIZE;
+static uint8_t *WsfHeapStart = wsfHeap;
+static uint32_t WsfHeapSize = WSF_HEAP_SIZE;
 
 /*************************************************************************************************/
 /*!
@@ -54,8 +54,8 @@ void WsfHeapAlloc(uint32_t size)
   /* Round up to nearest multiple of 4 for word alignment */
   size = (size + 3) & ~3;
 
-  SystemHeapStart += size;
-  SystemHeapSize -= size;
+  WsfHeapStart += size;
+  WsfHeapSize -= size;
 }
 
 /*************************************************************************************************/
@@ -67,7 +67,7 @@ void WsfHeapAlloc(uint32_t size)
 /*************************************************************************************************/
 void *WsfHeapGetFreeStartAddress(void)
 {
-  return (void *)SystemHeapStart;
+  return (void *)WsfHeapStart;
 }
 
 /*************************************************************************************************/
@@ -79,7 +79,7 @@ void *WsfHeapGetFreeStartAddress(void)
 /*************************************************************************************************/
 uint32_t WsfHeapCountAvailable(void)
 {
-  return SystemHeapSize;
+  return WsfHeapSize;
 }
 
 /*************************************************************************************************/
@@ -91,5 +91,5 @@ uint32_t WsfHeapCountAvailable(void)
 /*************************************************************************************************/
 uint32_t WsfHeapCountUsed(void)
 {
-  return WSF_HEAP_SIZE - SystemHeapSize;
+  return (WSF_HEAP_SIZE - WsfHeapSize);
 }
