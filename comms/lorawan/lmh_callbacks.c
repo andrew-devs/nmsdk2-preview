@@ -50,9 +50,7 @@ static void lmh_rx_callback_service(LmHandlerAppData_t *appData, LmHandlerRxPara
 
 static void lmh_on_mac_process(void)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    lorawan_task_wake_from_isr(&xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    lorawan_task_wake();
 }
 
 static void lmh_on_nvm_data_change(LmHandlerNvmContextStates_t state, uint16_t size)

@@ -173,16 +173,12 @@ static void lorawan_task_setup()
 
 void lorawan_wake_on_radio_irq()
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    lorawan_task_wake_from_isr(&xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    lorawan_task_wake();
 }
 
 void lorawan_wake_on_timer_irq()
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    lorawan_task_wake_from_isr(&xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    lorawan_task_wake();
 }
 
 static void lorawan_task(void *pvParameters)
@@ -216,12 +212,19 @@ void lorawan_task_create(uint32_t ui32Priority)
 
 void lorawan_task_wake()
 {
-    xTaskNotify(lorawan_task_handle, 0, eNoAction);
-}
+    BaseType_t xHigherPriorityTaskWoken;
 
-void lorawan_task_wake_from_isr(BaseType_t *higher_priority_task_woken)
-{
-    xTaskNotifyFromISR(lorawan_task_handle, 0, eNoAction, higher_priority_task_woken);
+    if (xPortIsInsideInterrupt() == pdTRUE)
+    {
+        xHigherPriorityTaskWoken = pdFALSE;
+        xTaskNotifyFromISR(lorawan_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    else
+    {
+        xTaskNotify(lorawan_task_handle, 0, eNoAction);
+        portYIELD();
+    }
 }
 
 void lorawan_send_command(lorawan_command_t *pCommand)

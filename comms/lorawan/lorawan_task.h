@@ -36,6 +36,5 @@
 
 extern void lorawan_task_create(uint32_t ui32Priority);
 extern void lorawan_task_wake();
-extern void lorawan_task_wake_from_isr(BaseType_t *higher_priority_task_woken);
 
 #endif
