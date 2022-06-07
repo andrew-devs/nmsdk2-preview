@@ -178,26 +178,30 @@ void lmh_callbacks_setup(LmHandlerCallbacks_t *cb)
     vListInitialise(&lorawan_receive_callback_list);
 }
 
-void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t pHandle)
+QueueHandle_t lorawan_receive_register(uint32_t ui32Port, uint32_t elements)
 {
+    QueueHandle_t queue = xQueueCreate(elements, sizeof(lorawan_rx_packet_t));
     ListItem_t *list_item = pvPortMalloc(sizeof(ListItem_t));
     vListInitialiseItem(list_item);
 
     list_item->xItemValue = ui32Port;
-    list_item->pvOwner = pHandle;
+    list_item->pvOwner = queue;
 
     vListInsertEnd(&lorawan_receive_callback_list, list_item);
+    
+    return queue;
 }
 
-void lorawan_receive_unregister(uint32_t ui32Port, QueueHandle_t pHandle)
+void lorawan_receive_unregister(QueueHandle_t handle)
 {
     ListItem_t *pItem = listGET_HEAD_ENTRY(&lorawan_receive_callback_list);
 
     while (pItem != listGET_END_MARKER(&lorawan_receive_callback_list))
     {
-        if ((pItem->pvOwner == pHandle) && (pItem->xItemValue == ui32Port))
+        if (pItem->pvOwner == handle)
         {
             listREMOVE_ITEM(pItem);
+            vQueueDelete(handle);
             return;
         }
 
@@ -211,7 +215,7 @@ void lmh_rx_callback_service(LmHandlerAppData_t *appData, LmHandlerRxParams_t *p
 
     while (pItem != listGET_END_MARKER(&lorawan_receive_callback_list))
     {
-        if (pItem->pvOwner)
+        if ((pItem->pvOwner) && (pItem->xItemValue == appData->Port))
         {
             lorawan_rx_packet_t packet;
             packet.ui32DownlinkCounter = params->DownlinkCounter;

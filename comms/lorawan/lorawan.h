@@ -91,7 +91,7 @@ extern void lorawan_set_nwk_key_by_bytes(const uint8_t *pui8NwkKey);
 extern void lorawan_get_nwk_key(uint8_t *pui8NwkKey);
 
 extern void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *pui8Data);
-extern void lorawan_receive_register(uint32_t ui32Port, QueueHandle_t pHandle);
-extern void lorawan_receive_unregister(uint32_t ui32Port, QueueHandle_t pHandle);
+extern QueueHandle_t lorawan_receive_register(uint32_t ui32Port, uint32_t elements);
+extern void lorawan_receive_unregister(QueueHandle_t handle);
 
 #endif
