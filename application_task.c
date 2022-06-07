@@ -30,14 +30,21 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <am_mcu_apollo.h>
+#include <am_util.h>
 
 #include <FreeRTOS.h>
 #include <task.h>
+
+#include "am_bsp.h"
+
+#include "lorawan.h"
 
 #include "application_task.h"
 #include "application_task_cli.h"
 
 static TaskHandle_t application_task_handle;
+static QueueHandle_t lorawan_receive_queue;
+static lorawan_rx_packet_t packet;
 
 static void application_task(void *parameter);
 
@@ -50,12 +57,30 @@ void application_task(void *parameter)
 {
     application_task_cli_register();
 
-    am_hal_gpio_pinconfig(10, g_AM_HAL_GPIO_OUTPUT);
-    am_hal_gpio_state_write(10, AM_HAL_GPIO_OUTPUT_SET);
+    lorawan_receive_queue = lorawan_receive_register(1, 2);
+
+    am_hal_gpio_pinconfig(AM_BSP_GPIO_LED0, g_AM_HAL_GPIO_OUTPUT);
+    am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_SET);
 
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(500));
-        am_hal_gpio_state_write(10, AM_HAL_GPIO_OUTPUT_TOGGLE);
+        if (xQueueReceive(lorawan_receive_queue, &packet, pdMS_TO_TICKS(500)) == pdPASS)
+        {
+            am_util_stdio_printf("\n\rReceived Data\n\r");
+            am_util_stdio_printf("COUNTER   : %-4d\n\r", packet.ui32DownlinkCounter);
+            am_util_stdio_printf("PORT      : %-4d\n\r", packet.ui32Port);
+            am_util_stdio_printf("SLOT      : %-4d\n\r", packet.i16ReceiveSlot);
+            am_util_stdio_printf("DATA RATE : %-4d\n\r", packet.i16DataRate);
+            am_util_stdio_printf("RSSI      : %-4d\n\r", packet.i16RSSI);
+            am_util_stdio_printf("SNR       : %-4d\n\r", packet.i16SNR);
+            am_util_stdio_printf("SIZE      : %-4d\n\r", packet.ui32Length);
+            am_util_stdio_printf("PAYLOAD   :\n\r");
+            for (int i = 0; i < packet.ui32Length; i++)
+            {
+                am_util_stdio_printf("%02x ", packet.pui8Payload[i]);
+            }
+            am_util_stdio_printf("\n\r\n\r");
+        }
+        am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_TOGGLE);
     }
 }
