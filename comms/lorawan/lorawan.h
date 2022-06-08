@@ -39,7 +39,9 @@
 
 typedef enum
 {
-    LORAWAN_JOIN = 0,
+    LORAWAN_START,
+    LORAWAN_STOP,
+    LORAWAN_JOIN,
     LORAWAN_RESET,
     LORAWAN_SYNC_APP,
     LORAWAN_SYNC_MAC,

@@ -46,18 +46,22 @@ static TaskHandle_t application_task_handle;
 static QueueHandle_t lorawan_receive_queue;
 static lorawan_rx_packet_t packet;
 
-static void application_task(void *parameter);
-
-void application_task_create(uint32_t priority)
+static void application_setup_lorawan()
 {
-    xTaskCreate(application_task, "application", 512, 0, priority, &application_task_handle);
-}
-
-void application_task(void *parameter)
-{
-    application_task_cli_register();
+    lorawan_set_app_eui_by_str("b4c231a359bc2e3d");
+    lorawan_set_app_key_by_str("01c3f004a2d6efffe32c4eda14bcd2b4");
+    lorawan_set_nwk_key_by_str("3f4ca100e2fc675ea123f4eb12c4a012");
 
     lorawan_receive_queue = lorawan_receive_register(1, 2);
+
+    lorawan_command_t command;
+    command.eCommand = LORAWAN_START;
+    lorawan_send_command(&command);
+}
+
+static void application_task(void *parameter)
+{
+    application_task_cli_register();
 
     am_hal_gpio_pinconfig(AM_BSP_GPIO_LED0, g_AM_HAL_GPIO_OUTPUT);
     am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_SET);
@@ -83,4 +87,9 @@ void application_task(void *parameter)
         }
         am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_TOGGLE);
     }
+}
+
+void application_task_create(uint32_t priority)
+{
+    xTaskCreate(application_task, "application", 512, 0, priority, &application_task_handle);
 }

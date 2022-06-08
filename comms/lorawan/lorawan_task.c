@@ -59,6 +59,8 @@
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
 
+static uint32_t lorawan_stack_started;
+
 static TaskHandle_t lorawan_task_handle;
 static QueueHandle_t lorawan_task_command_queue;
 static QueueHandle_t lorawan_task_transmit_queue;
@@ -70,6 +72,9 @@ static LmHandlerParams_t lmh_parameters;
 static LmHandlerCallbacks_t lmh_callbacks;
 static LmhpFragmentationParams_t lmhp_fragmentation_parameters;
 static LmhpComplianceParams_t lmhp_compliance_parameters;
+
+static void lorawan_stack_start();
+static void lorawan_stack_stop();
 
 static void lorawan_task_handle_uplink()
 {
@@ -112,28 +117,45 @@ static void lorawan_task_handle_command()
     // critical radios such as BLE to run their state machines.
     if (xQueueReceive(lorawan_task_command_queue, &command, 0) == pdPASS)
     {
-        switch (command.eCommand)
+        if (command.eCommand == LORAWAN_START)
         {
-        case LORAWAN_JOIN:
-            LmHandlerJoin();
-            break;
-        case LORAWAN_SYNC_APP:
-            LmhpClockSyncAppTimeReq();
-            break;
-        case LORAWAN_SYNC_MAC:
-            LmHandlerDeviceTimeReq();
-            break;
-        case LORAWAN_CLASS_SET:
-            LmHandlerRequestClass((DeviceClass_t)command.pvParameters);
-            break;
-        default:
-            break;
+            lorawan_stack_start(); 
+            return;
+        }
+
+        if (lorawan_stack_started)
+        {
+            switch (command.eCommand)
+            {
+            case LORAWAN_STOP:
+                lorawan_stack_stop();
+                break;
+            case LORAWAN_JOIN:
+                LmHandlerJoin();
+                break;
+            case LORAWAN_SYNC_APP:
+                LmhpClockSyncAppTimeReq();
+                break;
+            case LORAWAN_SYNC_MAC:
+                LmHandlerDeviceTimeReq();
+                break;
+            case LORAWAN_CLASS_SET:
+                LmHandlerRequestClass((DeviceClass_t)command.pvParameters);
+                break;
+            default:
+                break;
+            }
         }
     }
 }
 
-static void lorawan_task_setup()
+static void lorawan_stack_start()
 {
+    if (lorawan_stack_started)
+    {
+        return;
+    }
+
     BoardInitMcu();
     BoardInitPeriph();
 
@@ -156,19 +178,32 @@ static void lorawan_task_setup()
         break;
     }
 
-    memset(&lmh_callbacks, 0, sizeof(LmHandlerCallbacks_t));
-    lmh_callbacks_setup(&lmh_callbacks);
     LmHandlerInit(&lmh_callbacks, &lmh_parameters);
     LmHandlerSetSystemMaxRxError(20);
 
     LmHandlerPackageRegister(PACKAGE_ID_COMPLIANCE, &lmhp_compliance_parameters);
-
     LmHandlerPackageRegister(PACKAGE_ID_CLOCK_SYNC, NULL);
-
     LmHandlerPackageRegister(PACKAGE_ID_REMOTE_MCAST_SETUP, NULL);
 
     lmhp_fragmentation_setup(&lmhp_fragmentation_parameters);
     LmHandlerPackageRegister(PACKAGE_ID_FRAGMENTATION, &lmhp_fragmentation_parameters);
+
+    if (LmHandlerJoinStatus() == LORAMAC_HANDLER_SET)
+    {
+        LmHandlerRequestClass(LORAWAN_DEFAULT_CLASS);
+        LmHandlerDeviceTimeReq();
+    }
+
+    lorawan_stack_started = true;
+}
+
+void lorawan_stack_stop()
+{
+    LoRaMacStop();
+    LoRaMacDeInitialization();
+    BoardDeInitMcu();
+    xQueueReset(lorawan_task_transmit_queue);
+    lorawan_stack_started = false;
 }
 
 void lorawan_wake_on_radio_irq()
@@ -183,20 +218,18 @@ void lorawan_wake_on_timer_irq()
 
 static void lorawan_task(void *pvParameters)
 {
+    lorawan_stack_started = false;
     lorawan_task_cli_register();
-    lorawan_task_setup();
-
-    if (LmHandlerJoinStatus() == LORAMAC_HANDLER_SET)
-    {
-        LmHandlerRequestClass(LORAWAN_DEFAULT_CLASS);
-        LmHandlerDeviceTimeReq();
-    }
 
     while (1)
     {
         lorawan_task_handle_command();
-        LmHandlerProcess();
-        lorawan_task_handle_uplink();
+
+        if (lorawan_stack_started)
+        {
+            LmHandlerProcess();
+            lorawan_task_handle_uplink();
+        }
 
         xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
     }
@@ -208,6 +241,9 @@ void lorawan_task_create(uint32_t ui32Priority)
 
     lorawan_task_command_queue = xQueueCreate(8, sizeof(lorawan_command_t));
     lorawan_task_transmit_queue = xQueueCreate(8, sizeof(lorawan_tx_packet_t));
+
+    memset(&lmh_callbacks, 0, sizeof(LmHandlerCallbacks_t));
+    lmh_callbacks_setup(&lmh_callbacks);
 }
 
 void lorawan_task_wake()

@@ -181,6 +181,7 @@ void lorawan_receive_unregister(QueueHandle_t handle)
         if (pItem->pvOwner == handle)
         {
             listREMOVE_ITEM(pItem);
+            vPortFree(pItem);
             vQueueDelete(handle);
             return;
         }

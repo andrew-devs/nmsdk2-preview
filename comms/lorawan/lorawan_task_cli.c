@@ -139,6 +139,8 @@ static void lorawan_task_cli_help(char *pui8OutBuffer, size_t argc, char **argv)
     strcat(pui8OutBuffer, "\r\nusage: lorawan <command>\r\n");
     strcat(pui8OutBuffer, "\r\n");
     strcat(pui8OutBuffer, "supported commands are:\r\n");
+    strcat(pui8OutBuffer, "  start    start the LoRaWAN stack\r\n");
+    strcat(pui8OutBuffer, "  stop     stop the LoRaWAN stack\r\n");
     strcat(pui8OutBuffer, "  class    get/set class\r\n");
     strcat(pui8OutBuffer, "  clear    reformat eeprom\r\n");
     strcat(pui8OutBuffer, "  datetime get/set/sync time\r\n");
@@ -357,6 +359,18 @@ lorawan_task_cli_entry(char *pui8OutBuffer, size_t ui32OutBufferLength, const ch
     if (strcmp(argv[1], "help") == 0)
     {
         lorawan_task_cli_help(pui8OutBuffer, argc, argv);
+    }
+    else if (strcmp(argv[1], "start") == 0)
+    {
+        lorawan_command_t command;
+        command.eCommand = LORAWAN_START;
+        lorawan_send_command(&command);
+    }
+    else if (strcmp(argv[1], "stop") == 0)
+    {
+        lorawan_command_t command;
+        command.eCommand = LORAWAN_STOP;
+        lorawan_send_command(&command);
     }
     else if (strcmp(argv[1], "class") == 0)
     {
