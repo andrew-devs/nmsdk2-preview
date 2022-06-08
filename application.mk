@@ -27,6 +27,8 @@ OUTPUT_VERSION := 0x00
 
 OUTPUT      := nmapp
 OUTPUT_OTA  := nmapp-ota
+OUTPUT_WIRE := nmapp-wire
+UPDATE_STORAGE_ADDRESS := 0x80000
 
 #******************************************************************************
 #

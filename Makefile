@@ -76,16 +76,18 @@ nmsdk:
 bsp: $(BSP_H) $(BSP_C)
 
 $(BSP_H): $(BSP_SRC)
-	python $(BSP_GENERATOR) $< h > $@
+	$(PYTHON) $(BSP_GENERATOR) $< h > $@
 
 $(BSP_C): $(BSP_SRC)
-	python $(BSP_GENERATOR) $< c > $@
+	$(PYTHON) $(BSP_GENERATOR) $< c > $@
 
 OBJS_DBG += $(SRC:%.c=$(BUILDDIR_DBG)/%.o)
 DEPS_DBG += $(SRC:%.c=$(BUILDDIR_DBG)/%.o)
 OUTPUT_DBG := $(BUILDDIR_DBG)/$(OUTPUT)$(SUFFIX_DBG).axf
-OUTPUT_BIN_DBG := $(OUTPUT_DBG:%.axf=%.bin)
-OUTPUT_LST_DBG := $(OUTPUT_DBG:%.axf=%.lst)
+OUTPUT_BIN_DBG  := $(OUTPUT_DBG:%.axf=%.bin)
+OUTPUT_WIRE_DBG := $(OUTPUT_DBG:%.axf=%-wire.bin)
+OUTPUT_OTA_DBG  := $(OUTPUT_DBG:%.axf=%-ota.bin)
+OUTPUT_LST_DBG  := $(OUTPUT_DBG:%.axf=%.lst)
 OUTPUT_SIZE_DBG := $(OUTPUT_DBG:%.axf=%.size)
 
 debug: nmsdk bsp $(BUILDDIR_DBG) $(OUTPUT_BIN_DBG)
@@ -101,15 +103,20 @@ $(OUTPUT_BIN_DBG): $(OUTPUT_DBG)
 $(OUTPUT_DBG): $(OBJS_DBG) $(SDK_LIBS_DBG)
 	$(CC) -Wl,-T,$(LDSCRIPT) -o $@ $(OBJS_DBG) $(LFLAGS_DBG)
 
+$(OUTPUT_WIRE_DBG): $(OUTPUT_DBG)
+	$(PYTHON) ./tools/create_cust_image_blob.py --bin $< --load-address 0xc000 --magic-num 0xcb -o $(BUILDDIR_DBG)/temp --version 0x0
+	$(PYTHON) ./tools/create_cust_wireupdate_blob.py --load-address $(UPDATE_STORAGE_ADDRESS) --bin $(BUILDDIR_DBG)/temp.bin -i 6 -o $(basename $(OUTPUT_WIRE_DBG)) --options 0x1
+
 $(OBJS_DBG): $(BUILDDIR_DBG)/%.o : %.c
 	$(CC) -c $(CFLAGS_DBG) $< -o $@
-
 
 OBJS_REL += $(SRC:%.c=$(BUILDDIR_REL)/%.o)
 DEPS_REL += $(SRC:%.c=$(BUILDDIR_REL)/%.o)
 OUTPUT_REL := $(BUILDDIR_REL)/$(OUTPUT)$(SUFFIX_REL).axf
-OUTPUT_BIN_REL := $(OUTPUT_REL:%.axf=%.bin)
-OUTPUT_LST_REL := $(OUTPUT_REL:%.axf=%.lst)
+OUTPUT_BIN_REL  := $(OUTPUT_REL:%.axf=%.bin)
+OUTPUT_WIRE_REL := $(OUTPUT_REL:%.axf=%-wire.bin)
+OUTPUT_OTA_REL  := $(OUTPUT_REL:%.axf=%-ota.bin)
+OUTPUT_LST_REL  := $(OUTPUT_REL:%.axf=%.lst)
 OUTPUT_SIZE_REL := $(OUTPUT_REL:%.axf=%.size)
 
 release: nmsdk bsp $(BUILDDIR_REL) $(OUTPUT_BIN_REL)
@@ -125,11 +132,14 @@ $(OUTPUT_BIN_REL): $(OUTPUT_REL)
 $(OUTPUT_REL): $(OBJS_REL) $(SDK_LIBS_REL)
 	$(CC) -Wl,-T,$(LDSCRIPT) -o $@ $(OBJS_REL) $(LFLAGS_REL)
 
+$(OUTPUT_WIRE_REL): $(OUTPUT_REL)
+	$(PYTHON) ./tools/create_cust_image_blob.py --bin $< --load-address 0xc000 --magic-num 0xcb -o $(BUILDDIR_REL)/temp --version 0x0
+	$(PYTHON) ./tools/create_cust_wireupdate_blob.py --load-address $(UPDATE_STORAGE_ADDRESS) --bin $(BUILDDIR_REL)/temp.bin -i 6 -o $(basename $(OUTPUT_WIRE_REL)) --options 0x1
+
 $(OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
 	$(CC) -c $(CFLAGS_REL) $< -o $@
 
-clean:
-	$(RM) -rf ./build $(BSP_H) $(BSP_C)
+wire: $(OUTPUT_WIRE_REL) $(OUTPUT_WIRE_DBG)
 
 clean-sdk:
 	make -C $(TARGET) uninstall
@@ -141,9 +151,7 @@ clean-debug:
 clean-release:
 	$(RM) -rf $(BUILDDIR_REL) $(BSP_H) $(BSP_C)
 
-cleanall:
+clean:
 	$(RM) -rf ./build $(BSP_H) $(BSP_C)
-	make -C $(TARGET) uninstall
-	make -C $(TARGET) clean
 
 .phony: nmsdk
