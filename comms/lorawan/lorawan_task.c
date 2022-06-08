@@ -176,6 +176,7 @@ static void lorawan_stack_start()
     {
         return;
     }
+    lorawan_task_handle_power_management(LORAWAN_PM_WAKE);
 
     BoardInitMcu();
     BoardInitPeriph();
@@ -223,6 +224,7 @@ void lorawan_stack_stop()
     LoRaMacStop();
     LoRaMacDeInitialization();
     BoardDeInitMcu();
+    lorawan_task_handle_power_management(LORAWAN_PM_SLEEP);
     xQueueReset(lorawan_task_transmit_queue);
     lorawan_stack_started = false;
 }
