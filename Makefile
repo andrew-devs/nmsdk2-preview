@@ -103,7 +103,7 @@ $(OUTPUT_BIN_DBG): $(OUTPUT_DBG)
 $(OUTPUT_DBG): $(OBJS_DBG) $(SDK_LIBS_DBG)
 	$(CC) -Wl,-T,$(LDSCRIPT) -o $@ $(OBJS_DBG) $(LFLAGS_DBG)
 
-$(OUTPUT_WIRE_DBG): $(OUTPUT_DBG)
+$(OUTPUT_WIRE_DBG): $(OUTPUT_BIN_DBG)
 	$(PYTHON) ./tools/create_cust_image_blob.py --bin $< --load-address 0xc000 --magic-num 0xcb -o $(BUILDDIR_DBG)/temp --version 0x0
 	$(PYTHON) ./tools/create_cust_wireupdate_blob.py --load-address $(UPDATE_STORAGE_ADDRESS) --bin $(BUILDDIR_DBG)/temp.bin -i 6 -o $(basename $(OUTPUT_WIRE_DBG)) --options 0x1
 
@@ -132,14 +132,14 @@ $(OUTPUT_BIN_REL): $(OUTPUT_REL)
 $(OUTPUT_REL): $(OBJS_REL) $(SDK_LIBS_REL)
 	$(CC) -Wl,-T,$(LDSCRIPT) -o $@ $(OBJS_REL) $(LFLAGS_REL)
 
-$(OUTPUT_WIRE_REL): $(OUTPUT_REL)
+$(OUTPUT_WIRE_REL): $(OUTPUT_BIN_REL)
 	$(PYTHON) ./tools/create_cust_image_blob.py --bin $< --load-address 0xc000 --magic-num 0xcb -o $(BUILDDIR_REL)/temp --version 0x0
 	$(PYTHON) ./tools/create_cust_wireupdate_blob.py --load-address $(UPDATE_STORAGE_ADDRESS) --bin $(BUILDDIR_REL)/temp.bin -i 6 -o $(basename $(OUTPUT_WIRE_REL)) --options 0x1
 
 $(OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
 	$(CC) -c $(CFLAGS_REL) $< -o $@
 
-wire: $(OUTPUT_WIRE_REL) $(OUTPUT_WIRE_DBG)
+wire: $(OUTPUT_WIRE_REL)
 
 clean-sdk:
 	make -C $(TARGET) uninstall
