@@ -32,10 +32,8 @@
 #ifndef EEPROM_EMULATION_CONF_H_
 #define EEPROM_EMULATION_CONF_H_
 
+#include "lorawan_config.h"
 #include "eeprom_emulation.h"
-
-#define LORAWAN_EEPROM_NUMBER_OF_PAGES    (2)
-#define LORAWAN_EEPROM_START_ADDRESS      (AM_HAL_FLASH_LARGEST_VALID_ADDR + 1 - (LORAWAN_EEPROM_NUMBER_OF_PAGES * AM_HAL_FLASH_PAGE_SIZE))
 
 extern eeprom_handle_t lorawan_eeprom_handle;
 

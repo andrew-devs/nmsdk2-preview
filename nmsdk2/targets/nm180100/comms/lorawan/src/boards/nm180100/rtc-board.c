@@ -41,6 +41,7 @@
 #include <timer.h>
 
 #include "lorawan_power.h"
+#include "lorawan_config.h"
 
 // The typical transition time from deep-sleep to run mode is 25us (Chapter 22.4).
 // A single alarm tick using a 32.768kHz crystal is about 30.5us.  At the nominal
@@ -49,11 +50,11 @@
 // and restore context.
 #define MIN_ALARM_DELAY (3)
 
-#define CLOCK_PERIOD  32768
+#define CLOCK_PERIOD  LORAWAN_CLOCK_PERIOD
 #define CLOCK_SHIFT   15
 #define CLOCK_MS_MASK 0x7FFF
 #define TICKS_IN_MS   (CLOCK_PERIOD * 1e-3)
-#define CLOCK_SOURCE  AM_HAL_STIMER_XTAL_32KHZ
+#define CLOCK_SOURCE  LORAWAN_CLOCK_SOURCE
 
 static bool    RtcInitialized           = false;
 static bool    McuWakeUpTimeInitialized = false;

@@ -37,8 +37,8 @@
  * 2. Specify the maximum image size
  */
 
-#define OTA_FLASH_ADDRESS      0x00088000  // second flash bank
-#define OTA_FLASH_MAX_SIZE     0x00074000  // 475k
-#define OTA_POINTER_LOCATION   0x00086000
+#define OTA_FLASH_ADDRESS      0x00082000  // second flash bank
+#define OTA_FLASH_MAX_SIZE     0x0007E000
+#define OTA_POINTER_LOCATION   0x00080000
 
 #endif
