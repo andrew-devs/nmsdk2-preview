@@ -49,6 +49,7 @@
 #include <app_ui.h>
 
 #include "console_task.h"
+#include "ble.h"
 #include "ble_task.h"
 #include "ble_task_cli.h"
 
@@ -78,6 +79,7 @@ static void ble_task_cli_help(char *pui8OutBuffer, size_t argc, char **argv)
     strcat(pui8OutBuffer, "supported commands are:\r\n");
     strcat(pui8OutBuffer, "  adv    <start|stop>\r\n");
     strcat(pui8OutBuffer, "  trace  <on|off>\r\n");
+    strcat(pui8OutBuffer, "  start\r\n");
 }
 
 static void ble_task_cli_adv(char *pui8OutBuffer, size_t argc, char **argv)
@@ -123,6 +125,12 @@ ble_task_cli_entry(char *pui8OutBuffer, size_t ui32OutBufferLength, const char *
     else if (strcmp(argv[1], "trace") == 0)
     {
         ble_task_cli_trace(pui8OutBuffer, argc, argv);
+    }
+    else if (strcmp(argv[1], "start") == 0)
+    {
+        ble_command_t command;
+        command.eCommand = BLE_START;
+        ble_send_command(&command);
     }
 
     return pdFALSE;

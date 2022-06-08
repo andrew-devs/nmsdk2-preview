@@ -53,19 +53,15 @@ static void application_setup_lorawan()
     lorawan_set_nwk_key_by_str("3f4ca100e2fc675ea123f4eb12c4a012");
 
     lorawan_receive_queue = lorawan_receive_register(1, 2);
-
-    lorawan_command_t command;
-    command.eCommand = LORAWAN_START;
-    lorawan_send_command(&command);
 }
 
 static void application_task(void *parameter)
 {
     application_task_cli_register();
+    application_setup_lorawan();
 
     am_hal_gpio_pinconfig(AM_BSP_GPIO_LED0, g_AM_HAL_GPIO_OUTPUT);
     am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_SET);
-
     while (1)
     {
         if (xQueueReceive(lorawan_receive_queue, &packet, pdMS_TO_TICKS(500)) == pdPASS)

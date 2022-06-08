@@ -57,12 +57,14 @@
 #include "wdxs/wdxs_api.h"
 #include "tag/tag_api.h"
 
+#include "ble.h"
 #include "ble_stack.h"
-
 #include "ble_task.h"
 #include "ble_task_cli.h"
 
 static TaskHandle_t ble_task_handle;
+static QueueHandle_t ble_task_command_queue;
+static uint32_t ble_stack_started;
 
 static wsfBufPoolDesc_t mainPoolDesc[] = {{16, 8}, {32, 4}, {192, 8}, {256, 8}};
 static char wsf_trace_buffer[256];
@@ -72,7 +74,25 @@ void am_ble_isr(void)
     HciDrvIntService();
 }
 
-uint8_t ble_task_tracer(const uint8_t *msg, long unsigned int len)
+void WsfOsEventNotify(void)
+{
+    BaseType_t xHigherPriorityTaskWoken;
+
+    if(xPortIsInsideInterrupt() == pdTRUE) {
+      //
+      // Send an event to the main radio task
+      //
+      xHigherPriorityTaskWoken = pdFALSE;
+      xTaskNotifyFromISR(ble_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
+      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    else {
+      xTaskNotify(ble_task_handle, 0, eNoAction);
+      portYIELD();
+    }
+}
+
+static uint8_t ble_task_tracer(const uint8_t *msg, long unsigned int len)
 {
     memcpy(wsf_trace_buffer, msg, len);
     wsf_trace_buffer[len] = 0;
@@ -82,8 +102,13 @@ uint8_t ble_task_tracer(const uint8_t *msg, long unsigned int len)
     return 1;
 }
 
-static void ble_task_setup()
+static void ble_stack_start()
 {
+    if (ble_stack_started)
+    {
+        return;
+    }
+
     HciDrvRadioBoot(1);
 
     const uint8_t numPools = sizeof(mainPoolDesc) / sizeof(mainPoolDesc[0]);
@@ -108,17 +133,40 @@ static void ble_task_setup()
 
     handlerId = WsfOsSetNextHandler(HciDrvHandler);
     HciDrvHandlerInit(handlerId);
+
+    TagStart();
+
+    ble_stack_started = true;
+}
+
+static void ble_task_handle_command()
+{
+    ble_command_t command;
+
+    if (xQueueReceive(ble_task_command_queue, &command, 0) == pdPASS)
+    {
+        if (command.eCommand == BLE_START)
+        {
+            ble_stack_start();
+            return;
+        }
+    }
 }
 
 static void ble_task(void *pvParameters)
 {
+    ble_stack_started = false;
     ble_task_cli_register();
-    ble_task_setup();
 
-    TagStart();
     while (1)
     {
-        wsfOsDispatcher();
+        ble_task_handle_command();
+
+        if (ble_stack_started)
+        {
+            wsfOsDispatcher();
+        }
+
         if (wsfOsReadyToSleep())
         {
             xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
@@ -129,23 +177,11 @@ static void ble_task(void *pvParameters)
 void ble_task_create(uint32_t ui32Priority)
 {
     xTaskCreate(ble_task, "ble", 512, 0, ui32Priority, &ble_task_handle);
+    ble_task_command_queue = xQueueCreate(8, sizeof(ble_command_t));
 }
 
-void WsfOsEventNotify(void)
+void ble_send_command(ble_command_t *pCommand)
 {
-    BaseType_t xHigherPriorityTaskWoken;
-
-    if(xPortIsInsideInterrupt() == pdTRUE) {
-      //
-      // Send an event to the main radio task
-      //
-      xHigherPriorityTaskWoken = pdFALSE;
-      xTaskNotifyFromISR(ble_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
-      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
-    else {
-      xTaskNotify(ble_task_handle, 0, eNoAction);
-      portYIELD();
-    }
+    xQueueSend(ble_task_command_queue, pCommand, 0);
+    WsfOsEventNotify();
 }
-
