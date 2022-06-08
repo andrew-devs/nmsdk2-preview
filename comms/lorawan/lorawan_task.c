@@ -50,6 +50,7 @@
 #include <LmhpFragmentation.h>
 #include <LmhpRemoteMcastSetup.h>
 #include <board.h>
+#include <radio.h>
 
 #include "lorawan.h"
 #include "lorawan_config.h"
@@ -60,7 +61,7 @@
 #include "lorawan_task_cli.h"
 
 static uint32_t lorawan_stack_started;
-
+static lorawan_power_management_t lorawan_pm_callback;
 static TaskHandle_t lorawan_task_handle;
 static QueueHandle_t lorawan_task_command_queue;
 static QueueHandle_t lorawan_task_transmit_queue;
@@ -75,6 +76,26 @@ static LmhpComplianceParams_t lmhp_compliance_parameters;
 
 static void lorawan_stack_start();
 static void lorawan_stack_stop();
+
+static void lorawan_task_handle_power_management(lorawan_pm_state_e state)
+{
+    if (lorawan_pm_callback == NULL)
+    {
+        return;
+    }
+
+    if (state == LORAWAN_PM_SLEEP)
+    {
+        if (Radio.GetStatus() == RF_IDLE)
+        {
+            lorawan_pm_callback(state);
+        }
+    }
+    else if (state == LORAWAN_PM_WAKE)
+    {
+        lorawan_pm_callback(state);
+    }
+}
 
 static void lorawan_task_handle_uplink()
 {
@@ -231,7 +252,9 @@ static void lorawan_task(void *pvParameters)
             lorawan_task_handle_uplink();
         }
 
+        lorawan_task_handle_power_management(LORAWAN_PM_SLEEP);
         xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
+        lorawan_task_handle_power_management(LORAWAN_PM_WAKE);
     }
 }
 
@@ -244,6 +267,8 @@ void lorawan_task_create(uint32_t ui32Priority)
 
     memset(&lmh_callbacks, 0, sizeof(LmHandlerCallbacks_t));
     lmh_callbacks_setup(&lmh_callbacks);
+
+    lorawan_pm_callback = NULL;
 }
 
 void lorawan_task_wake()
@@ -289,4 +314,9 @@ void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, 
     xQueueSend(lorawan_task_transmit_queue, &packet, 0);
 
     lorawan_task_wake();
+}
+
+void lorawan_power_management_register(lorawan_power_management_t pHandler)
+{
+    lorawan_pm_callback = pHandler;
 }

@@ -46,6 +46,27 @@ static TaskHandle_t application_task_handle;
 static QueueHandle_t lorawan_receive_queue;
 static lorawan_rx_packet_t packet;
 
+void application_pm_lorawan(lorawan_pm_state_e state)
+{
+    if (state == LORAWAN_PM_SLEEP)
+    {
+        am_hal_gpio_state_write(AM_BSP_GPIO_LED1, AM_HAL_GPIO_OUTPUT_CLEAR);
+    }
+    else if (state == LORAWAN_PM_WAKE)
+    {
+        am_hal_gpio_state_write(AM_BSP_GPIO_LED1, AM_HAL_GPIO_OUTPUT_SET);
+    }
+}
+
+static void application_setup_task()
+{
+    am_hal_gpio_pinconfig(AM_BSP_GPIO_LED0, g_AM_HAL_GPIO_OUTPUT);
+    am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_CLEAR);
+
+    am_hal_gpio_pinconfig(AM_BSP_GPIO_LED1, g_AM_HAL_GPIO_OUTPUT);
+    am_hal_gpio_state_write(AM_BSP_GPIO_LED1, AM_HAL_GPIO_OUTPUT_CLEAR);
+}
+
 static void application_setup_lorawan()
 {
     lorawan_set_app_eui_by_str("b4c231a359bc2e3d");
@@ -53,15 +74,20 @@ static void application_setup_lorawan()
     lorawan_set_nwk_key_by_str("3f4ca100e2fc675ea123f4eb12c4a012");
 
     lorawan_receive_queue = lorawan_receive_register(1, 2);
+    lorawan_power_management_register(application_pm_lorawan);
+
+    // start the LoRaWAN stack
+    lorawan_command_t command = { .eCommand = LORAWAN_START, .pvParameters = NULL };
+    lorawan_send_command(&command);
 }
 
 static void application_task(void *parameter)
 {
     application_task_cli_register();
+
+    application_setup_task();
     application_setup_lorawan();
 
-    am_hal_gpio_pinconfig(AM_BSP_GPIO_LED0, g_AM_HAL_GPIO_OUTPUT);
-    am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_SET);
     while (1)
     {
         if (xQueueReceive(lorawan_receive_queue, &packet, pdMS_TO_TICKS(500)) == pdPASS)

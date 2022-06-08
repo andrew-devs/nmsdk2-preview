@@ -74,6 +74,14 @@ typedef struct
     uint8_t    *pui8Data;
 } lorawan_tx_packet_t;
 
+typedef enum
+{
+    LORAWAN_PM_SLEEP,
+    LORAWAN_PM_WAKE
+} lorawan_pm_state_e;
+
+typedef void (*lorawan_power_management_t)(lorawan_pm_state_e state);
+
 extern void lorawan_send_command(lorawan_command_t *pCommand);
 
 extern void lorawan_set_device_eui_by_str(const char *pcDeviceEUI);
@@ -95,5 +103,7 @@ extern void lorawan_get_nwk_key(uint8_t *pui8NwkKey);
 extern void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *pui8Data);
 extern QueueHandle_t lorawan_receive_register(uint32_t ui32Port, uint32_t elements);
 extern void lorawan_receive_unregister(QueueHandle_t handle);
+
+extern void lorawan_power_management_register(lorawan_power_management_t callback);
 
 #endif
