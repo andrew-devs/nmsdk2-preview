@@ -14,7 +14,7 @@ LDSCRIPT := ldscript.ld
 # Specify the location of the board support package to be used.
 #
 #******************************************************************************
-BSP_DIR := ./bsp/nm180100evb
+BSP_DIR := ./bsp/nm180310
 BSP_SRC := bsp_pins.src
 
 #******************************************************************************
