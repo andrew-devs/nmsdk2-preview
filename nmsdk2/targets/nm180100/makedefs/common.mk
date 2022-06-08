@@ -15,6 +15,7 @@ OD   = $(TOOLCHAIN)-objdump
 RD   = $(TOOLCHAIN)-readelf
 AR   = $(TOOLCHAIN)-ar
 SIZE = $(TOOLCHAIN)-size
+PYTHON = python
 
 SED   = sed
 MKDIR = mkdir
