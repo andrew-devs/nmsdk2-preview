@@ -781,24 +781,19 @@ pin
     IOMnum          = 0
 
 # *****************************************************************************
+#  USB Detect
+# *****************************************************************************
+pin
+    name            = USB_DETECT
+    desc            = 
+    pinnum          = 4
+    func_sel        = AM_HAL_PIN_4_GPIO
+    GPinput         = true
+    intdir          = both
+
+# *****************************************************************************
 #  GPIO pins.
 # *****************************************************************************
-# Header Pin        Ambiq Mapping
-# J100-5            PIN_33
-# J100-6            PIN_32
-# J100-7            PIN_31
-# J100-8            PIN_16
-# J100-9            PIN_11
-# J100-10           PIN_29
-# J100-11           PIN_8
-# J100-12           PIN_10
-# J100-13           PIN_9
-# J100-14           PIN_13
-# J100-15           PIN_12
-#
-# For alternate functions, see Ambiq Apollo3 Blue MCU Datasheet
-# Chapter 11 (GPIO and Pad Configuration Module)
-#
 pin
     name            = GPIO_33
     pinnum          = 33
@@ -865,16 +860,6 @@ pin
     func_sel        = AM_HAL_PIN_12_GPIO
     drvstrength     = 12
 
-# Header Pin        Ambiq Mapping
-# J101-4            PIN_19
-# J101-5            PIN_3
-# J101-6            PIN_45
-# J101-7            PIN_0
-# J101-8            PIN_21
-# J101-9            PIN_20
-# J101-10           PIN_41
-# J101-11           PIN_48
-# J101-12           PIN_49
 pin
     name            = GPIO_19
     pinnum          = 19
