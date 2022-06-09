@@ -313,7 +313,15 @@ void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, 
         packet.pui8Data = NULL;
     }
 
-    xQueueSend(lorawan_task_transmit_queue, &packet, 0);
+    if (xPortIsInsideInterrupt() == pdTRUE)
+    {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        xQueueSendFromISR(lorawan_task_transmit_queue, &packet, &xHigherPriorityTaskWoken);
+    }
+    else
+    {
+        xQueueSend(lorawan_task_transmit_queue, &packet, 0);
+    }
 
     lorawan_task_wake();
 }
