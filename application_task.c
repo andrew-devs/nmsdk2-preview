@@ -47,21 +47,11 @@ static TaskHandle_t application_task_handle;
 static QueueHandle_t lorawan_receive_queue;
 static lorawan_rx_packet_t packet;
 
-static TimerHandle_t periodic_transmit_timer;
-uint8_t transmit_buffer[2] = { 1, 2 };
-
-static void periodic_transmit_callback(TimerHandle_t handle)
+void application_button_handler()
 {
-    am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_CLEAR);
-    am_util_delay_ms(100);
-    am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_SET);
-
-    lorawan_transmit(
-        1, LORAMAC_HANDLER_UNCONFIRMED_MSG, 1, transmit_buffer);
-
+    lorawan_transmit(1, LORAMAC_HANDLER_UNCONFIRMED_MSG, 0, NULL);
     portYIELD();
 }
-
 
 void application_pm_lorawan(lorawan_pm_state_e state)
 {
@@ -90,6 +80,13 @@ static void application_setup_task()
 
     am_hal_gpio_pinconfig(AM_BSP_GPIO_SENSORS_EN, g_AM_HAL_GPIO_OUTPUT);
     am_hal_gpio_state_write(AM_BSP_GPIO_SENSORS_EN, AM_HAL_GPIO_OUTPUT_CLEAR);
+
+    am_hal_gpio_pinconfig(AM_BSP_GPIO_USB_DETECT, g_AM_HAL_GPIO_INPUT);
+
+    am_hal_gpio_pinconfig(AM_BSP_GPIO_BUTTON0, g_AM_HAL_GPIO_INPUT);
+    am_hal_gpio_interrupt_register(AM_BSP_GPIO_BUTTON0, application_button_handler);
+    am_hal_gpio_interrupt_clear(AM_HAL_GPIO_BIT(AM_BSP_GPIO_BUTTON0));
+    am_hal_gpio_interrupt_enable(AM_HAL_GPIO_BIT(AM_BSP_GPIO_BUTTON0));
 }
 
 static void application_setup_lorawan()
@@ -104,17 +101,6 @@ static void application_setup_lorawan()
     // start the LoRaWAN stack
     lorawan_command_t command = { .eCommand = LORAWAN_START, .pvParameters = NULL };
     lorawan_send_command(&command);
-
-    am_util_delay_ms(2000);
-
-    periodic_transmit_timer = xTimerCreate(
-        "transmit periodic",
-        pdMS_TO_TICKS(10000),
-        pdTRUE,
-        (void *)0,
-        periodic_transmit_callback);
-
-    xTimerStart(periodic_transmit_timer, portMAX_DELAY);
 }
 
 static void application_task(void *parameter)
@@ -126,7 +112,7 @@ static void application_task(void *parameter)
 
     while (1)
     {
-        if (xQueueReceive(lorawan_receive_queue, &packet, pdMS_TO_TICKS(60000)) == pdPASS)
+        if (xQueueReceive(lorawan_receive_queue, &packet, 0) == pdPASS)
         {
             am_util_stdio_printf("\n\rReceived Data\n\r");
             am_util_stdio_printf("COUNTER   : %-4d\n\r", packet.ui32DownlinkCounter);
@@ -143,11 +129,11 @@ static void application_task(void *parameter)
             }
             am_util_stdio_printf("\n\r\n\r");
         }
-        /*
+
         am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_CLEAR);
         vTaskDelay(pdMS_TO_TICKS(200));
         am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_SET);
-        */
+        vTaskDelay(pdMS_TO_TICKS(4800));
     }
 }
 
