@@ -56,9 +56,6 @@
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
 
-static portBASE_TYPE
-lorawan_task_cli_entry(char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command);
-
 CLI_Command_Definition_t lorawan_task_cli_definition = {
     (const char *const) "lorawan",
     (const char *const) "lorawan:  LoRaWAN Application Layer Commands.\r\n",
@@ -348,7 +345,7 @@ static void lorawan_task_cli_send(char *pui8OutBuffer, size_t argc, char **argv)
     lorawan_transmit(port, ack, length, lorawan_cli_transmit_buffer);
 }
 
-static portBASE_TYPE
+portBASE_TYPE
 lorawan_task_cli_entry(char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command)
 {
     pui8OutBuffer[0] = 0;

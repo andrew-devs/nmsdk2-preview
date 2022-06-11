@@ -39,6 +39,7 @@
 #include "am_bsp.h"
 
 #include "lorawan.h"
+#include "lorawan_task_cli.h"
 
 #include "application_task.h"
 #include "application_task_cli.h"
@@ -58,12 +59,12 @@ void application_pm_lorawan(lorawan_pm_state_e state)
     if (state == LORAWAN_PM_SLEEP)
     {
         am_hal_gpio_state_write(AM_BSP_GPIO_LED1, AM_HAL_GPIO_OUTPUT_SET);
-        am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_CLEAR);
+//        am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_CLEAR);
     }
     else if (state == LORAWAN_PM_WAKE)
     {
         am_hal_gpio_state_write(AM_BSP_GPIO_LED1, AM_HAL_GPIO_OUTPUT_CLEAR);
-        am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_SET);
+//        am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_SET);
     }
 }
 
@@ -76,7 +77,7 @@ static void application_setup_task()
     am_hal_gpio_state_write(AM_BSP_GPIO_LED1, AM_HAL_GPIO_OUTPUT_SET);
 
     am_hal_gpio_pinconfig(AM_BSP_GPIO_LORA_EN, g_AM_HAL_GPIO_OUTPUT);
-    am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_CLEAR);
+    am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_SET);
 
     am_hal_gpio_pinconfig(AM_BSP_GPIO_SENSORS_EN, g_AM_HAL_GPIO_OUTPUT);
     am_hal_gpio_state_write(AM_BSP_GPIO_SENSORS_EN, AM_HAL_GPIO_OUTPUT_CLEAR);
@@ -130,10 +131,8 @@ static void application_task(void *parameter)
             am_util_stdio_printf("\n\r\n\r");
         }
 
-        am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_CLEAR);
-        vTaskDelay(pdMS_TO_TICKS(200));
-        am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_SET);
-        vTaskDelay(pdMS_TO_TICKS(4800));
+        vTaskDelay(pdMS_TO_TICKS(15000));
+        lorawan_transmit(1, LORAMAC_HANDLER_UNCONFIRMED_MSG, 0, NULL);
     }
 }
 

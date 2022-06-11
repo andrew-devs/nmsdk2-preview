@@ -33,5 +33,8 @@
 #define _APPLICATION_TASK_CLI_H_
 
 extern void application_task_cli_register();
+extern portBASE_TYPE application_task_cli_entry(
+    char *pui8OutBuffer, size_t ui32OutBufferLength, const char *pui8Command);
+
 
 #endif

@@ -286,7 +286,6 @@ void lorawan_task_wake()
     else
     {
         xTaskNotify(lorawan_task_handle, 0, eNoAction);
-        portYIELD();
     }
 }
 

@@ -40,10 +40,6 @@
 
 #include "application_task_cli.h"
 
-static portBASE_TYPE application_task_cli_entry(char *pui8OutBuffer,
-                                                size_t ui32OutBufferLength,
-                                                const char *pui8Command);
-
 static CLI_Command_Definition_t application_task_cli_definition = {
     (const char *const) "app",
     (const char *const) "app    :  Application Commands.\r\n",
