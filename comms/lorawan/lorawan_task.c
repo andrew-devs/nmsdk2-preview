@@ -215,6 +215,7 @@ static void lorawan_stack_start()
         LmHandlerRequestClass(LORAWAN_DEFAULT_CLASS);
         LmHandlerDeviceTimeReq();
     }
+    Radio.Sleep();
 
     lorawan_stack_started = true;
 }
