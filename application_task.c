@@ -48,6 +48,9 @@ static TaskHandle_t application_task_handle;
 static QueueHandle_t lorawan_receive_queue;
 static lorawan_rx_packet_t packet;
 
+static lorawan_pm_state_e lorawan_radio_state;
+
+
 void application_button_handler()
 {
     lorawan_transmit(1, LORAMAC_HANDLER_UNCONFIRMED_MSG, 0, NULL);
@@ -58,13 +61,24 @@ void application_pm_lorawan(lorawan_pm_state_e state)
 {
     if (state == LORAWAN_PM_SLEEP)
     {
-        am_hal_gpio_state_write(AM_BSP_GPIO_LED1, AM_HAL_GPIO_OUTPUT_SET);
-//        am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_CLEAR);
+        if (lorawan_radio_state == LORAWAN_PM_WAKE)
+        {
+            am_hal_gpio_state_write(AM_BSP_GPIO_LED1, AM_HAL_GPIO_OUTPUT_SET);
+            am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_CLEAR);
+
+            lorawan_radio_state = LORAWAN_PM_SLEEP;
+        }
     }
     else if (state == LORAWAN_PM_WAKE)
     {
-        am_hal_gpio_state_write(AM_BSP_GPIO_LED1, AM_HAL_GPIO_OUTPUT_CLEAR);
-//        am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_SET);
+        if (lorawan_radio_state == LORAWAN_PM_SLEEP)
+        {
+            am_hal_gpio_state_write(AM_BSP_GPIO_LED1, AM_HAL_GPIO_OUTPUT_CLEAR);
+            am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_SET);
+            am_util_delay_ms(1);
+
+            lorawan_radio_state = LORAWAN_PM_WAKE;
+        }
     }
 }
 
@@ -78,6 +92,7 @@ static void application_setup_task()
 
     am_hal_gpio_pinconfig(AM_BSP_GPIO_LORA_EN, g_AM_HAL_GPIO_OUTPUT);
     am_hal_gpio_state_write(AM_BSP_GPIO_LORA_EN, AM_HAL_GPIO_OUTPUT_SET);
+    lorawan_radio_state = LORAWAN_PM_WAKE;
 
     am_hal_gpio_pinconfig(AM_BSP_GPIO_SENSORS_EN, g_AM_HAL_GPIO_OUTPUT);
     am_hal_gpio_state_write(AM_BSP_GPIO_SENSORS_EN, AM_HAL_GPIO_OUTPUT_CLEAR);
