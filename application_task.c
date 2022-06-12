@@ -44,20 +44,45 @@
 #include "application_task.h"
 #include "application_task_cli.h"
 
+typedef enum
+{
+    APPLICATION_SEND
+} application_command_e;
+
 static TaskHandle_t application_task_handle;
+static QueueHandle_t application_command_queue;
 static QueueHandle_t lorawan_receive_queue;
 static lorawan_rx_packet_t packet;
 
 static lorawan_pm_state_e lorawan_radio_state;
 
-
-void application_button_handler()
+static void application_button_handler()
 {
-    lorawan_transmit(1, LORAMAC_HANDLER_UNCONFIRMED_MSG, 0, NULL);
-    portYIELD();
+    am_hal_gpio_interrupt_disable(AM_HAL_GPIO_BIT(AM_BSP_GPIO_BUTTON0));
+    am_hal_gpio_interrupt_clear(AM_HAL_GPIO_BIT(AM_BSP_GPIO_BUTTON0));
+
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    application_command_e command = APPLICATION_SEND;
+
+    xQueueSendFromISR(application_command_queue, &command, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-void application_pm_lorawan(lorawan_pm_state_e state)
+static void application_usb_handler()
+{
+    uint32_t connected;
+    am_hal_gpio_state_read(AM_BSP_GPIO_USB_DETECT, AM_HAL_GPIO_INPUT_READ, &connected);
+    if (connected)
+    {
+        am_bsp_buffered_uart_printf_enable();
+    }
+    else
+    {
+        am_bsp_uart_printf_disable();
+    }
+}
+
+static void application_pm_lorawan(lorawan_pm_state_e state)
 {
     if (state == LORAWAN_PM_SLEEP)
     {
@@ -97,12 +122,22 @@ static void application_setup_task()
     am_hal_gpio_pinconfig(AM_BSP_GPIO_SENSORS_EN, g_AM_HAL_GPIO_OUTPUT);
     am_hal_gpio_state_write(AM_BSP_GPIO_SENSORS_EN, AM_HAL_GPIO_OUTPUT_CLEAR);
 
-    am_hal_gpio_pinconfig(AM_BSP_GPIO_USB_DETECT, g_AM_HAL_GPIO_INPUT);
+    am_hal_gpio_pinconfig(AM_BSP_GPIO_USB_DETECT, g_AM_BSP_GPIO_USB_DETECT);
+    am_hal_gpio_interrupt_register(AM_BSP_GPIO_USB_DETECT, application_usb_handler);
+    am_hal_gpio_interrupt_clear(AM_HAL_GPIO_BIT(AM_BSP_GPIO_USB_DETECT));
+    am_hal_gpio_interrupt_enable(AM_HAL_GPIO_BIT(AM_BSP_GPIO_USB_DETECT));
 
-    am_hal_gpio_pinconfig(AM_BSP_GPIO_BUTTON0, g_AM_HAL_GPIO_INPUT);
+    am_hal_gpio_pinconfig(AM_BSP_GPIO_BUTTON0, g_AM_BSP_GPIO_BUTTON0);
     am_hal_gpio_interrupt_register(AM_BSP_GPIO_BUTTON0, application_button_handler);
     am_hal_gpio_interrupt_clear(AM_HAL_GPIO_BIT(AM_BSP_GPIO_BUTTON0));
     am_hal_gpio_interrupt_enable(AM_HAL_GPIO_BIT(AM_BSP_GPIO_BUTTON0));
+
+    uint32_t connected;
+    am_hal_gpio_state_read(AM_BSP_GPIO_USB_DETECT, AM_HAL_GPIO_INPUT_READ, &connected);
+    if (!connected)
+    {
+        am_bsp_uart_printf_disable();
+    }
 }
 
 static void application_setup_lorawan()
@@ -111,7 +146,7 @@ static void application_setup_lorawan()
     lorawan_set_app_key_by_str("01c3f004a2d6efffe32c4eda14bcd2b4");
     lorawan_set_nwk_key_by_str("3f4ca100e2fc675ea123f4eb12c4a012");
 
-    lorawan_receive_queue = lorawan_receive_register(1, 2);
+//    lorawan_receive_queue = lorawan_receive_register(1, 2);
     lorawan_power_management_register(application_pm_lorawan);
 
     // start the LoRaWAN stack
@@ -121,6 +156,8 @@ static void application_setup_lorawan()
 
 static void application_task(void *parameter)
 {
+    uint8_t buffer[8];
+    uint32_t counter = 0;
     application_task_cli_register();
 
     application_setup_task();
@@ -128,6 +165,7 @@ static void application_task(void *parameter)
 
     while (1)
     {
+        /*
         if (xQueueReceive(lorawan_receive_queue, &packet, 0) == pdPASS)
         {
             am_util_stdio_printf("\n\rReceived Data\n\r");
@@ -145,13 +183,30 @@ static void application_task(void *parameter)
             }
             am_util_stdio_printf("\n\r\n\r");
         }
+        */
 
-        vTaskDelay(pdMS_TO_TICKS(15000));
-        lorawan_transmit(1, LORAMAC_HANDLER_UNCONFIRMED_MSG, 0, NULL);
+        application_command_e command;
+        if (xQueueReceive(application_command_queue, &command, portMAX_DELAY) == pdPASS)
+        {
+            switch(command)
+            {
+            case APPLICATION_SEND:
+                am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_CLEAR);
+                memcpy(buffer, &counter, 4);
+                lorawan_transmit(1, LORAMAC_HANDLER_UNCONFIRMED_MSG, 4, buffer);
+                counter++;
+
+                vTaskDelay(pdMS_TO_TICKS(10));
+                am_hal_gpio_interrupt_clear(AM_HAL_GPIO_BIT(AM_BSP_GPIO_BUTTON0));
+                am_hal_gpio_interrupt_enable(AM_HAL_GPIO_BIT(AM_BSP_GPIO_BUTTON0));
+                break;
+            }
+        }
     }
 }
 
 void application_task_create(uint32_t priority)
 {
     xTaskCreate(application_task, "application", 512, 0, priority, &application_task_handle);
+    application_command_queue = xQueueCreate(8, sizeof(application_command_e));
 }
