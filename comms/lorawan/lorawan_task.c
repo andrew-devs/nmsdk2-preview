@@ -256,7 +256,7 @@ static void lorawan_task(void *pvParameters)
         }
 
         lorawan_task_handle_power_management(LORAWAN_PM_SLEEP);
-        xTaskNotifyWait(0, 1, NULL, portMAX_DELAY);
+        ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
         lorawan_task_handle_power_management(LORAWAN_PM_WAKE);
     }
 }
@@ -281,20 +281,24 @@ void lorawan_task_wake()
     if (xPortIsInsideInterrupt() == pdTRUE)
     {
         xHigherPriorityTaskWoken = pdFALSE;
-        xTaskNotifyFromISR(lorawan_task_handle, 0, eNoAction, &xHigherPriorityTaskWoken);
+        vTaskNotifyGiveFromISR(lorawan_task_handle, &xHigherPriorityTaskWoken);
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
     else
     {
-        xTaskNotify(lorawan_task_handle, 0, eNoAction);
-        portYIELD();
+        xTaskNotifyGive(lorawan_task_handle);
     }
 }
 
 void lorawan_send_command(lorawan_command_t *pCommand)
 {
+    // prevent context switch until task notification is completed
+    taskENTER_CRITICAL();
+
     xQueueSend(lorawan_task_command_queue, pCommand, 0);
     lorawan_task_wake();
+
+    taskEXIT_CRITICAL();
 }
 
 void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *pui8Data)
@@ -314,9 +318,13 @@ void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, 
         packet.pui8Data = NULL;
     }
 
-    xQueueSend(lorawan_task_transmit_queue, &packet, 0);
+    // prevent context switch until task notification is completed
+    taskENTER_CRITICAL();
 
+    xQueueSend(lorawan_task_transmit_queue, &packet, 0);
     lorawan_task_wake();
+
+    taskEXIT_CRITICAL();
 }
 
 void lorawan_power_management_register(lorawan_power_management_t pHandler)
