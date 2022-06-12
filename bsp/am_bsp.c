@@ -814,6 +814,11 @@ am_bsp_com_uart_transfer(const am_hal_uart_transfer_t *psTransfer)
 void
 am_bsp_uart_printf_enable(void)
 {
+    if (g_sCOMUART)
+    {
+        return;
+    }
+
     //
     // Save the information that we're using the UART for printing.
     //
@@ -848,6 +853,11 @@ am_bsp_uart_printf_enable(void)
 void
 am_bsp_uart_printf_disable(void)
 {
+    if (g_sCOMUART == NULL)
+    {
+        return;
+    }
+
     //
     // Detach the UART from the stdio driver.
     //
@@ -876,6 +886,11 @@ am_bsp_uart_printf_disable(void)
 void
 am_bsp_buffered_uart_printf_enable(void)
 {
+    if (g_sCOMUART)
+    {
+        return;
+    }
+
     //
     // Save the information that we're using the UART for printing.
     //
