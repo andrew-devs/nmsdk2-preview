@@ -191,7 +191,6 @@ static void application_task(void *parameter)
             switch(command)
             {
             case APPLICATION_SEND:
-                am_hal_gpio_state_write(AM_BSP_GPIO_LED0, AM_HAL_GPIO_OUTPUT_CLEAR);
                 memcpy(buffer, &counter, 4);
                 lorawan_transmit(1, LORAMAC_HANDLER_UNCONFIRMED_MSG, 4, buffer);
                 counter++;
