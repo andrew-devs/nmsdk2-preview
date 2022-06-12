@@ -43,6 +43,7 @@
 
 #include <FreeRTOS.h>
 #include <queue.h>
+#include <timers.h>
 
 #include <LmHandler.h>
 #include <LmhpClockSync.h>
@@ -60,11 +61,18 @@
 #include "lorawan_task.h"
 #include "lorawan_task_cli.h"
 
+#define LORAWAN_SPI_PORT_TIMEOUT    8000
+
+extern void *SX126xHandle;
+
 static uint32_t lorawan_stack_started;
+static uint32_t lorawan_spi_port_powered;
+
 static lorawan_power_management_t lorawan_pm_callback;
 static TaskHandle_t lorawan_task_handle;
 static QueueHandle_t lorawan_task_command_queue;
 static QueueHandle_t lorawan_task_transmit_queue;
+static TimerHandle_t lorawan_spi_port_timer;
 
 #define LM_BUFFER_SIZE 242
 static uint8_t psLmDataBuffer[LM_BUFFER_SIZE];
@@ -76,6 +84,15 @@ static LmhpComplianceParams_t lmhp_compliance_parameters;
 
 static void lorawan_stack_start();
 static void lorawan_stack_stop();
+
+static void lorawan_port_callback(TimerHandle_t timer)
+{
+    if (lorawan_spi_port_powered)
+    {
+        am_hal_iom_power_ctrl(SX126xHandle, AM_HAL_SYSCTRL_DEEPSLEEP, true);
+        lorawan_spi_port_powered = false;
+    }
+}
 
 static void lorawan_task_handle_power_management(lorawan_pm_state_e state)
 {
@@ -89,10 +106,17 @@ static void lorawan_task_handle_power_management(lorawan_pm_state_e state)
         if (Radio.GetStatus() == RF_IDLE)
         {
             lorawan_pm_callback(state);
+            xTimerChangePeriod(lorawan_spi_port_timer, pdMS_TO_TICKS(LORAWAN_SPI_PORT_TIMEOUT), 0);
         }
     }
     else if (state == LORAWAN_PM_WAKE)
     {
+        xTimerStop(lorawan_spi_port_timer, 0);
+        if (lorawan_spi_port_powered == false)
+        {
+            am_hal_iom_power_ctrl(SX126xHandle, AM_HAL_SYSCTRL_WAKE, true);
+            lorawan_spi_port_powered = true;
+        }
         lorawan_pm_callback(state);
     }
 }
@@ -176,10 +200,7 @@ static void lorawan_stack_start()
     {
         return;
     }
-    lorawan_task_handle_power_management(LORAWAN_PM_WAKE);
-
-    BoardInitMcu();
-    BoardInitPeriph();
+//    lorawan_task_handle_power_management(LORAWAN_PM_WAKE);
 
     lmh_parameters.Region = LORAMAC_REGION_US915;
     lmh_parameters.AdrEnable = true;
@@ -218,6 +239,7 @@ static void lorawan_stack_start()
     Radio.Sleep();
 
     lorawan_stack_started = true;
+    lorawan_spi_port_powered = true;
 }
 
 void lorawan_stack_stop()
@@ -227,7 +249,9 @@ void lorawan_stack_stop()
     BoardDeInitMcu();
     lorawan_task_handle_power_management(LORAWAN_PM_SLEEP);
     xQueueReset(lorawan_task_transmit_queue);
+
     lorawan_stack_started = false;
+    lorawan_spi_port_powered = false;
 }
 
 void lorawan_wake_on_radio_irq()
@@ -245,6 +269,9 @@ static void lorawan_task(void *pvParameters)
     lorawan_stack_started = false;
     lorawan_task_cli_register();
 
+    BoardInitMcu();
+    BoardInitPeriph();
+
     while (1)
     {
         lorawan_task_handle_command();
@@ -256,7 +283,9 @@ static void lorawan_task(void *pvParameters)
         }
 
         lorawan_task_handle_power_management(LORAWAN_PM_SLEEP);
+
         ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+
         lorawan_task_handle_power_management(LORAWAN_PM_WAKE);
     }
 }
@@ -267,6 +296,14 @@ void lorawan_task_create(uint32_t ui32Priority)
 
     lorawan_task_command_queue = xQueueCreate(8, sizeof(lorawan_command_t));
     lorawan_task_transmit_queue = xQueueCreate(8, sizeof(lorawan_tx_packet_t));
+
+    lorawan_spi_port_timer = xTimerCreate(
+        "LoRaWAN Port Timer",
+        pdMS_TO_TICKS(LORAWAN_SPI_PORT_TIMEOUT),
+        pdFALSE,
+        NULL,
+        lorawan_port_callback
+    );
 
     memset(&lmh_callbacks, 0, sizeof(LmHandlerCallbacks_t));
     lmh_callbacks_setup(&lmh_callbacks);
@@ -293,12 +330,12 @@ void lorawan_task_wake()
 void lorawan_send_command(lorawan_command_t *pCommand)
 {
     // prevent context switch until task notification is completed
-    taskENTER_CRITICAL();
+    //taskENTER_CRITICAL();
 
     xQueueSend(lorawan_task_command_queue, pCommand, 0);
     lorawan_task_wake();
 
-    taskEXIT_CRITICAL();
+    //taskEXIT_CRITICAL();
 }
 
 void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, uint8_t *pui8Data)
@@ -319,12 +356,12 @@ void lorawan_transmit(uint32_t ui32Port, uint32_t ui32Ack, uint32_t ui32Length, 
     }
 
     // prevent context switch until task notification is completed
-    taskENTER_CRITICAL();
+    //taskENTER_CRITICAL();
 
     xQueueSend(lorawan_task_transmit_queue, &packet, 0);
     lorawan_task_wake();
 
-    taskEXIT_CRITICAL();
+    //taskEXIT_CRITICAL();
 }
 
 void lorawan_power_management_register(lorawan_power_management_t pHandler)

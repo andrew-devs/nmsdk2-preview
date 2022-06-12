@@ -82,7 +82,7 @@ static const am_hal_gpio_pincfg_t s_RADIO_NSS = {
     .eCEpol         = AM_HAL_GPIO_PIN_CEPOL_ACTIVELOW};
 
 static am_hal_iom_config_t SX126xSpi;
-static void *              SX126xHandle;
+void *SX126xHandle;
 
 static RadioOperatingModes_t OperatingMode;
 
