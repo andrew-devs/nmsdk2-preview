@@ -203,7 +203,7 @@ pin
     func_sel        = AM_HAL_PIN_18_GPIO
     drvstrength     = 2
     GPinput         = true
-    intdir          = lo2hi
+    intdir          = hi2lo
 
 pin
     name            = LED0
