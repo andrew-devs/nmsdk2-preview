@@ -165,6 +165,7 @@ void system_setup(void)
 
 void system_start(void)
 {
+    console_task_create(3);
     lorawan_task_create(2);
     application_task_create(1);
     //

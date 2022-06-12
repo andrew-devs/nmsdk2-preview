@@ -146,7 +146,6 @@ static void application_setup_lorawan()
     lorawan_set_app_key_by_str("01c3f004a2d6efffe32c4eda14bcd2b4");
     lorawan_set_nwk_key_by_str("3f4ca100e2fc675ea123f4eb12c4a012");
 
-//    lorawan_receive_queue = lorawan_receive_register(1, 2);
     lorawan_power_management_register(application_pm_lorawan);
 
     // start the LoRaWAN stack
@@ -165,26 +164,6 @@ static void application_task(void *parameter)
 
     while (1)
     {
-        /*
-        if (xQueueReceive(lorawan_receive_queue, &packet, 0) == pdPASS)
-        {
-            am_util_stdio_printf("\n\rReceived Data\n\r");
-            am_util_stdio_printf("COUNTER   : %-4d\n\r", packet.ui32DownlinkCounter);
-            am_util_stdio_printf("PORT      : %-4d\n\r", packet.ui32Port);
-            am_util_stdio_printf("SLOT      : %-4d\n\r", packet.i16ReceiveSlot);
-            am_util_stdio_printf("DATA RATE : %-4d\n\r", packet.i16DataRate);
-            am_util_stdio_printf("RSSI      : %-4d\n\r", packet.i16RSSI);
-            am_util_stdio_printf("SNR       : %-4d\n\r", packet.i16SNR);
-            am_util_stdio_printf("SIZE      : %-4d\n\r", packet.ui32Length);
-            am_util_stdio_printf("PAYLOAD   :\n\r");
-            for (int i = 0; i < packet.ui32Length; i++)
-            {
-                am_util_stdio_printf("%02x ", packet.pui8Payload[i]);
-            }
-            am_util_stdio_printf("\n\r\n\r");
-        }
-        */
-
         application_command_e command;
         if (xQueueReceive(application_command_queue, &command, portMAX_DELAY) == pdPASS)
         {
@@ -195,7 +174,7 @@ static void application_task(void *parameter)
                 lorawan_transmit(1, LORAMAC_HANDLER_UNCONFIRMED_MSG, 4, buffer);
                 counter++;
 
-                vTaskDelay(pdMS_TO_TICKS(10));
+                vTaskDelay(pdMS_TO_TICKS(50));
                 am_hal_gpio_interrupt_clear(AM_HAL_GPIO_BIT(AM_BSP_GPIO_BUTTON0));
                 am_hal_gpio_interrupt_enable(AM_HAL_GPIO_BIT(AM_BSP_GPIO_BUTTON0));
                 break;
