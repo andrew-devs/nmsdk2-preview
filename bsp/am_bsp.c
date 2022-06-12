@@ -849,11 +849,6 @@ void
 am_bsp_uart_printf_disable(void)
 {
     //
-    // Make sure the UART has finished sending everything it's going to send.
-    //
-    am_hal_uart_tx_flush(g_sCOMUART);
-
-    //
     // Detach the UART from the stdio driver.
     //
     am_util_stdio_printf_init(0);
