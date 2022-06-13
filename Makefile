@@ -128,6 +128,9 @@ $(OUTPUT_REL): $(OBJS_REL) $(SDK_LIBS_REL)
 $(OBJS_REL): $(BUILDDIR_REL)/%.o : %.c
 	$(CC) -c $(CFLAGS_REL) $< -o $@
 
+clean:
+	$(RM) -rf ./build $(BSP_H) $(BSP_C)
+
 clean-sdk:
 	make -C $(TARGET) uninstall
 	make -C $(TARGET) clean
@@ -140,5 +143,7 @@ clean-release:
 
 cleanall:
 	$(RM) -rf ./build $(BSP_H) $(BSP_C)
+	make -C $(TARGET) uninstall
+	make -C $(TARGET) clean
 
 .phony: nmsdk
