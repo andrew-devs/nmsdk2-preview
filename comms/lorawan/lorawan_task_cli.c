@@ -45,6 +45,7 @@
 
 #include <LmHandler.h>
 #include <LoRaMacTypes.h>
+#include <board.h>
 
 #include <eeprom_emulation.h>
 #include <lorawan_eeprom_config.h>
@@ -144,6 +145,7 @@ static void lorawan_task_cli_help(char *pui8OutBuffer, size_t argc, char **argv)
     strcat(pui8OutBuffer, "  class    get/set class\r\n");
     strcat(pui8OutBuffer, "  clear    reformat eeprom\r\n");
     strcat(pui8OutBuffer, "  datetime get/set/sync time\r\n");
+    strcat(pui8OutBuffer, "  port     start/stop SPI port\r\n");
     strcat(pui8OutBuffer, "  join\r\n");
     strcat(pui8OutBuffer, "  keys\r\n");
     strcat(pui8OutBuffer, "  periodic\r\n");
@@ -245,6 +247,23 @@ static void lorawan_task_cli_datetime(char *pui8OutBuffer, size_t argc, char **a
             }
             lorawan_send_command(&command);
         }
+    }
+}
+
+static void lorawan_task_cli_port(char *pui8OutBuffer, size_t argc, char **argv)
+{
+    if (argc < 3)
+    {
+        return;
+    }
+
+    if (strcmp(argv[2], "stop") == 0)
+    {
+        BoardDeInitMcu();
+    }
+    else if (strcmp(argv[2], "start") == 0)
+    {
+        BoardInitMcu();
     }
 }
 
@@ -401,6 +420,10 @@ lorawan_task_cli_entry(char *pui8OutBuffer, size_t ui32OutBufferLength, const ch
     else if (strcmp(argv[1], "send") == 0)
     {
         lorawan_task_cli_send(pui8OutBuffer, argc, argv);
+    }
+    else if (strcmp(argv[1], "port") == 0)
+    {
+        lorawan_task_cli_port(pui8OutBuffer, argc, argv);
     }
 
     return pdFALSE;

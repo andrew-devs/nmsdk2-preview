@@ -200,7 +200,9 @@ static void lorawan_stack_start()
     {
         return;
     }
-//    lorawan_task_handle_power_management(LORAWAN_PM_WAKE);
+    lorawan_task_handle_power_management(LORAWAN_PM_WAKE);
+    BoardInitMcu();
+    BoardInitPeriph();
 
     lmh_parameters.Region = LORAMAC_REGION_US915;
     lmh_parameters.AdrEnable = true;
@@ -268,9 +270,6 @@ static void lorawan_task(void *pvParameters)
 {
     lorawan_stack_started = false;
     lorawan_task_cli_register();
-
-    BoardInitMcu();
-    BoardInitPeriph();
 
     while (1)
     {
