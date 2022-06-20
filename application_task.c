@@ -29,6 +29,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <string.h>
+
 #include <am_mcu_apollo.h>
 #include <am_util.h>
 
@@ -51,8 +53,6 @@ typedef enum
 
 static TaskHandle_t application_task_handle;
 static QueueHandle_t application_command_queue;
-static QueueHandle_t lorawan_receive_queue;
-static lorawan_rx_packet_t packet;
 
 static lorawan_pm_state_e lorawan_radio_state;
 
@@ -137,6 +137,10 @@ static void application_setup_task()
     if (!connected)
     {
         am_bsp_uart_printf_disable();
+    }
+    else
+    {
+        am_bsp_buffered_uart_printf_enable();
     }
 }
 

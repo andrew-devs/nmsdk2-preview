@@ -6,7 +6,9 @@
             "cppStandard": "c++20",
             "compilerPath": "arm-none-eabi-gcc",
             "defines": [
-                "AM_PART_APOLLO3", "SOFT_SE", "CONTEXT_MANGEMENT_ENABLED"
+                "AM_PART_APOLLO3",
+                "SOFT_SE",
+                "CONTEXT_MANGEMENT_ENABLED"
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": false
@@ -15,7 +17,8 @@
                 "${workspaceRoot}",
                 "${workspaceRoot}/**"
             ],
-            "intelliSenseMode": "gcc-arm"
+            "intelliSenseMode": "gcc-arm",
+            "configurationProvider": "ms-vscode.makefile-tools"
         }
     ],
     "version": 4
