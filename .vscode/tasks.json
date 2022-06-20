@@ -98,7 +98,7 @@
       "label": "clean all",
       "type": "shell",
       "command": "make",
-      "args": ["cleanall"],
+      "args": ["clean"],
       "group": {
         "kind": "build",
         "isDefault": true
