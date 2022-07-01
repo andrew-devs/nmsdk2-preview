@@ -20,6 +20,7 @@
                 "-rtos", "./GDBServer/RTOSPlugin_FreeRTOS"
             ],
             "preLaunchTask": "build debug",
+            "runToMain": true,
             "rttConfig": {
                 "enabled": true,
                 "address": "auto",
