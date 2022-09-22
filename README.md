@@ -31,12 +31,12 @@ To install VS Code:
 1. Download the latest version of VS Code from the [Download page](https://code.visualstudio.com/Download/). Choose the correct version for your operating system.
 2. On the **Select Additional Tasks** screen of the installation wizard, enable the **Add to PATH (requires shell restart)** checkbox. 
 
-![VS Code Installation with PATH checked](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/VSCodePath.png)
+![VS Code Installation with PATH checked](doc/VSCodePath.png)
 
 
 3. Click the **Install** button. 
 
-![VS Code installation confirmation](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/VSCodeInstall.png)
+![VS Code installation confirmation](doc/VSCodeInstall.png)
 
 4. VS Code should now be installed.
 
@@ -57,7 +57,7 @@ Once GitHub is downloaded, perform these steps to enable it in VS Code:
 4. Type “Git: Enabled” in the search bar.
 5. Ensure the **Git: Enabled** checkbox is enabled: 
 
-![Git Enabled](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/VSCodePath.png)
+![Git Enabled](doc/VSCodePath.png)
 
 ## Download NMSDK2 source code
 Once you have your preferred IDE and source control in place, it’s time to access the NMSDK2 source code.
@@ -65,11 +65,11 @@ Once you have your preferred IDE and source control in place, it’s time to acc
 1. Navigate to the main page of the [NMSDK2 repository](https://github.com/NorthernMechatronics/nmsdk2-preview).
 2. Above the list of files, click **Code**.
 
-![Clone Repository button](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/CloneRepo.png)
+![Clone Repository button](doc/CloneRepo.png)
 
 3. Copy the URL for the repository.
 
-![GitHub Copy Repository URL](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/CloneRepo2.png)
+![GitHub Copy Repository URL](doc/CloneRepo2.png)
 
 4. Open VS Code.
 5. Open the command palette with the key combination of Ctrl + Shift + P.
@@ -84,7 +84,7 @@ Once you have your preferred IDE and source control in place, it’s time to acc
 ## Install Git
 After opening the repository folder in VS Code for the first time, you may be prompted to install Git.
 
-![Dowload Git Prompt](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/DowloadGitPrompt.png)
+![Dowload Git Prompt](doc/DowloadGitPrompt.png)
 
 To download and install Git, follow these steps:
 
@@ -92,7 +92,7 @@ To download and install Git, follow these steps:
 2. Download the 62-bt or 32-bit version of Git depending on your operating system.
 3. Select VS Code as the Git’s default editor
 
-![Git VS Code Selected](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/GitVSCodeSelected.png)
+![Git VS Code Selected](doc/GitVSCodeSelected.png)
 
 4. Leave all other settings as default for the rest of the install options.
 
@@ -102,15 +102,15 @@ VS Code extensions let you add languages, debuggers, and tools to your installat
 1. Open VS Code.
 2. Click on **File** in the menu bar, then **Open Folder**.
 
-![File menu with Open Folder option](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/RecommendedExtensions0.png)
+![File menu with Open Folder option](doc/RecommendedExtensions0.png)
 
 3. Open the folder that contains your local version of the project.
 
-![Open Folder](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/RecommendedOpenFolder.png)
+![Open Folder](doc/RecommendedOpenFolder.png)
 
 4. When the project is opened, you should see the following pop-up message:
 
-![Recommended extension popup](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/RecommendedPopup.png)
+![Recommended extension popup](doc/RecommendedPopup.png)
 
 If no pop-up appears, follow these instructions to install our recommended extensions:
 1. Open the downloaded [NMSDK2 source code](#download-nmsdk2-source-code) repository folder in VS Code.
@@ -118,11 +118,11 @@ If no pop-up appears, follow these instructions to install our recommended exten
 3. Select **Extensions**.
 4. In the search bar that shows the prompt **Search Extensions in Marketplace**, enter the text “@recommended”. 
 
-![Recommended Extensions](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/RecommendedExtensions.png)
+![Recommended Extensions](doc/RecommendedExtensions.png)
 
 5. Download all of the extensions that appear under the **Workplace Recommendations** heading. 
 
-![Recommended Extensions List](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/RecommendedExtensions2.png)
+![Recommended Extensions List](doc/RecommendedExtensions2.png)
 
 If you cannot view these items listed in your workspace, manually install the following extensions:
 * C/C++
@@ -153,7 +153,7 @@ To make the MYSYS2 commands available everywhere, you need to add them to the �
     1. The default location for Windows 64-bit systems is: `C:\msys64\usr\bin`. 
     2. The default location for Windows 32-bit systems is: `C:\msys32\usr\bin`.
 
-![MSYS2 Path highlighted](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/MSYS2%20Path.png)
+![MSYS2 Path highlighted](doc/MSYS2%20Path.png)
 
 ## Download and Install GNU Arm Toolchain Compiler
 
@@ -165,7 +165,7 @@ Download and install GNU Arm Toolchain version 11.3.Rel1:
 2. Download the following version: arm-gnu-toolchain-11.3.rel1-mingw-w64-i686-arm-none-eabi.exe
 3. Add the compiler to your PATH using the **Add path to environment variable** checkbox.
 
-![Arm Compiler Path v11](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/ArmCompilerPathv11.png)
+![Arm Compiler Path v11](doc/ArmCompilerPathv11.png)
 
 ## Download and Configure Python 3
 
@@ -176,7 +176,7 @@ To install Python:
 1. Download the latest version of Python 3 from the [Downloads page](https://www.python.org/downloads/windows/). 
 2. User the Installation Wizard to add Python 3 to your PATH. 
 
-![Python Installer](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/PythonInstaller.png)
+![Python Installer](doc/PythonInstaller.png)
 
 3. Verify that the installation was successful by running the following command in your terminal:
 
@@ -194,11 +194,11 @@ To build the SDK for the first time:
 3. Click on **Run Build Task…**
 4. Select **build debug**. 
 
-![Run Build Debug](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/RunBuildDebug.png)
+![Run Build Debug](doc/RunBuildDebug.png)
 
 5. The output of this operation should resemble the following image:
 
-![Run Build DebugOutput](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/RunBuildDebugOutput.png)
+![Run Build DebugOutput](doc/RunBuildDebugOutput.png)
 
 ## Debugging
 
@@ -216,7 +216,7 @@ Download the official J-Link Software and Documentation pack. The exact version 
 ### Connect the J-Link Debug Probe to your NM180310 or NM180100EV
 When you have acquired the J-Link Debug Probe, and downloaded the associated J-Link debugging software, it is time to connect the J-Link debugger and your NM180310 or NM180100EV.
 
-![JLink Device Manager connected](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/JLinkDeviceManager.png)
+![JLink Device Manager connected](doc/JLinkDeviceManager.png)
 
 ### Debug in VS Code
 To start debugging in VS Code:
@@ -224,11 +224,11 @@ To start debugging in VS Code:
 1. Select **Run** in the menu bar.
 2. Click **Start Debugging**. 
 
-![Run start debugging](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/StartDebugging.png)
+![Run start debugging](doc/StartDebugging.png)
 
 3. When debugging has started, your screen should look like the following screenshot. 
 
-![DebuggingStarted](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/DebuggingStarted.png)
+![DebuggingStarted](doc/DebuggingStarted.png)
 
 ## Troubleshooting
 This section contains a list of common errors and issues our users face:
@@ -242,7 +242,7 @@ This section contains a list of common errors and issues our users face:
 ### Device not connected
 If you see the following error message of “undefined GDB Server Quit Unexpectedly”, it is because the J-Link debug device is not being detected.
 
-![Device Not Detected](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/DeviceNotDetected.png)
+![Device Not Detected](doc/DeviceNotDetected.png)
 
 Follow these steps to resolve the issue:
 
@@ -251,66 +251,64 @@ Follow these steps to resolve the issue:
 3. Reconnect the device
 4. Check the connection has been established in the Device Manager: 
 
-![JLink Device Manager](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/JLinkDeviceManager.png)
+![JLink Device Manager](doc/JLinkDeviceManager.png)
 
 ### JLinkGDBServerCL not found
 
 If you see the following error: “Failed to launch undefined GDB Server: Error: spawn C:\Program Files(x86)\SEGGER\JLink\JLinkGDBServerCL ENOENT”, it’s because the JLinkGDBServerCL.exe executable cannot be found.
 
-![JLink GDB Sever Error](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/JLINKGDBSeverError.png)
+![JLink GDB Sever Error](doc/JLINKGDBSeverError.png)
 
 To solve this issue, check the JLinkGDBServerCL.exe was successfully installed under the SEGGER > JLink folder:
 
-![JLink GDB Solution](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/JLINKGDBSolution.png)
+![JLink GDB Solution](doc/JLINKGDBSolution.png)
 
 
 ### Python not found
 You may encounter an error message in your console containing the text “Python was not found”:
 
-![Python Not Found error message](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/PythonNotFound.png)
+![Python Not Found error message](doc/PythonNotFound.png)
 
 Complete the following steps to verify the installation of Python was successful.
 
 1. Check that [Python has been added to your PATH](#download-and-configure-python-3). 
 
-![PythonPath](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/PythonPath.png)
+![PythonPath](doc/PythonPath.png)
 
 2. Check the installation folder for the Python executable: 
 
-![Python Installation Folder](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/PythonInstallationFolder.png)
+![Python Installation Folder](doc/PythonInstallationFolder.png)
 
 ### GNU GCC not found
 You may see this message in the Output tab of your terminal:
 
-![GNU GCC Not Found Output](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/GNUGCCNotFound1.png)
+![GNU GCC Not Found Output](doc/GNUGCCNotFound1.png)
 
 You may see a similar error in the Terminal tab itself:
 
-![GNU GCC Not Found Terminal](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/GNUGCCNotFound2.png)
+![GNU GCC Not Found Terminal](doc/GNUGCCNotFound2.png)
 
 Perform the following checks to rectify the issue:
 
 1. Check the GNU Arm Toolchain Compiler has been added to your Environment Variable path:
 
-![GNU Path](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/GNUPath.png)
+![GNU Path](doc/GNUPath.png)
 
 2. Check the bin folder contains the arm-none-eabi-gcc.exe executable: 
 
-![GNU Bin Folder](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/GNUBinFolder.png)
+![GNU Bin Folder](doc/GNUBinFolder.png)
 
 ### Make not found
 If you see an error in the terminal containing the text “The term 'make' is not recognized as the name of a cmdlet, function, script file, or operable program”, there may be an issue with your [MSYS2 installation](#install-and-configure-msys2). 
 
-![Make Not Found error](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/MakeNotFound.png)
+![Make Not Found error](doc/MakeNotFound.png)
 
 Check the following aspects of the installation:
 
 1. Check the bin folder for [MYSY2 has been added to your path](#adding-msys2-to-your-path-variable): 
 
-![MSYS Path Highlighted](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/MSYSPathHighlighted.png)
+![MSYS Path Highlighted](doc/MSYSPathHighlighted.png)
 
 2. Check the installation folder contains the make.exe executable: 
 
-![Make Executable](https://github.com/NorthernMechatronics/nmsdk2-preview/raw/master/doc/MakeExecutable.png)
-
-
+![Make Executable](doc/MakeExecutable.png)
