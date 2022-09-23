@@ -7,9 +7,8 @@ The NMSDK2 is a platform library for the Northern Mechatronics NM180100 LoRa BLE
 ## Prerequisites
 
 Northern Mechatronics recommends you complete the following steps when using the NMSDK2:
-
+* [Install Git](#install-git)
 * [Install Microsoft Visual Studio Code](#install-microsoft-visual-studio-code)
-* [Set up GitHub (Optional)](#set-up-github-optional)
 * [Download NMSDK2 source code](#download-nmsdk2-source-code)
 * [Install recommended VS Code extensions](#install-recommended-vs-code-extensions)
 * [Install and Configure MSYS2](#install-and-configure-msys2)
@@ -21,6 +20,20 @@ We recommend installing the following tools to debug your application:
 * [Download the J-Link Software and Documentation pack](#download-the-j-link-software-and-documentation-pack)
 * [Connect the J-Link Debug Probe to your NM180310 or NM180100EVB](#connect-the-j-link-debug-probe-to-your-nm180310-or-nm180100ev)
 
+## Install Git
+After opening the repository folder in VS Code for the first time, you may be prompted to install Git.
+
+![Dowload Git Prompt](doc/DowloadGitPrompt.png)
+
+To download and install Git, follow these steps:
+
+1. Click the **Download Git** button, or go directly to the [Git Downloads](https://git-scm.com/downloads) page.
+2. Download the 62-bt or 32-bit version of Git depending on your operating system.
+3. Select VS Code as the Git’s default editor
+
+![Git VS Code Selected](doc/GitVSCodeSelected.png)
+
+4. Leave all other settings as default for the rest of the install options.
 
 ## Install Microsoft Visual Studio Code
 
@@ -40,25 +53,6 @@ To install VS Code:
 
 4. VS Code should now be installed.
 
-
-## Set up GitHub (Optional)
-
-For your source control, we recommend using GitHub. It works seamlessly with the command line interface (CLI) offered through VS Code. It also has a desktop version available for download, offering a feature-rich user interface that simplifies version control for those less familiar with git commands.
-
-Get the latest version of GitHub Desktop from their [Downloads page](https://desktop.github.com/).
-
-
-### VS Code and GitHub Integration
-Once GitHub is downloaded, perform these steps to enable it in VS Code:
-
-1. Make sure you have already created your account on [GitHub](https://github.com/join).
-2. Open VS Code.
-3. Click on **Settings** or the gear icon.
-4. Type “Git: Enabled” in the search bar.
-5. Ensure the **Git: Enabled** checkbox is enabled: 
-
-![Git Enabled](doc/VSCodePath.png)
-
 ## Download NMSDK2 source code
 Once you have your preferred IDE and source control in place, it’s time to access the NMSDK2 source code.
 
@@ -73,28 +67,12 @@ Once you have your preferred IDE and source control in place, it’s time to acc
 
 4. Open VS Code.
 5. Open the command palette with the key combination of Ctrl + Shift + P.
-6. At the command palette prompt, enter `gitcl`, select the Git: Clone command, and press Enter.
+6. At the command palette prompt, enter `gitcl`, select the **Git: Clone (Recursive)** command, and press Enter.
 7. When prompted for the **Repository URL**, select clone from GitHub, then press Enter.
 8. If you are asked to sign into GitHub, complete the sign-in process.
 9. Enter the copied URL for the repository in the **Repository URL** field.
 10. Select (or create) the local directory into which you want to clone the project.
 11. When you receive the notification asking if you want to open the cloned repository, select Open.
-
-
-## Install Git
-After opening the repository folder in VS Code for the first time, you may be prompted to install Git.
-
-![Dowload Git Prompt](doc/DowloadGitPrompt.png)
-
-To download and install Git, follow these steps:
-
-1. Click the **Download Git** button, or go directly to the [Git Downloads](https://git-scm.com/downloads) page.
-2. Download the 62-bt or 32-bit version of Git depending on your operating system.
-3. Select VS Code as the Git’s default editor
-
-![Git VS Code Selected](doc/GitVSCodeSelected.png)
-
-4. Leave all other settings as default for the rest of the install options.
 
 ## Install recommended VS Code extensions
 VS Code extensions let you add languages, debuggers, and tools to your installation to support your development workflow. We recommend installing several extensions. To view the recommended VS Code extensions, follow these steps:
@@ -152,8 +130,14 @@ To make the MYSYS2 commands available everywhere, you need to add them to the �
 4. Click Browse Directory and add the following location of the `bin` folder under the `usr `directory to your path. The location will depend on where you chose to [install and configure MSYS2](#install-and-configure-msys2). 
     1. The default location for Windows 64-bit systems is: `C:\msys64\usr\bin`. 
     2. The default location for Windows 32-bit systems is: `C:\msys32\usr\bin`.
+    
+    ![MSYS2 Path highlighted](doc/MSYS2%20Path.png)
+    
+5. Open the MSY2 Shell on your machine. You can acess the shell by enetering "MSYS2 MSYS" in the Windows Start Menu.
+6. Enter the followinf command: `pacman -S make`.
+7. Enter `Y` if prompted. 
 
-![MSYS2 Path highlighted](doc/MSYS2%20Path.png)
+![MSYS2 pacman](doc/MSYS2pacman.png)
 
 ## Download and Install GNU Arm Toolchain Compiler
 
@@ -186,6 +170,8 @@ To install Python:
 
 ## Complete first-time build of the NMSDK2
 With the build [prerequisites](#prerequisites)in place, it is time to perform a build of the SDK.
+
+**Note: We recommend restarting your machine before attempting to build.**
 
 To build the SDK for the first time:
 
